@@ -5,7 +5,7 @@
 Build a fully local private network service platform using four
 macOS laptops.
 
-## Team
+## Team (ProtocolX)
 
 | Member | Machine | Primary Role |
 |---|---|---|
@@ -20,7 +20,7 @@ Client
 ↓
 Private DNS
 ↓
-app.teamX.test
+app.protocolx.test
 ↓
 nginx Edge
 ↓
