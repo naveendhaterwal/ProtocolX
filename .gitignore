@@ -1,2 +1,17 @@
+# Private keys and secrets
 *.key
+.env
+.env.*
+
+# OS & Editor artifacts
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Node dependencies and logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
