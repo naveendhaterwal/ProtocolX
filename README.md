@@ -45,7 +45,7 @@ Backend A / Backend B
 - [x] nginx reverse proxy
 - [x] Load balancing
 - [x] HTTPS/TLS
-- [ ] HTTP caching
+- [x] HTTP caching
 - [ ] Wireshark DNS evidence
 - [ ] Wireshark TCP evidence
 - [ ] Wireshark TLS evidence
