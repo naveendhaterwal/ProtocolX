@@ -1,0 +1,19 @@
+Phase 6: HTTP Caching Verification
+
+$ curl -sI https://app.protocolx.test/api/status
+HTTP/1.1 200 OK
+Server: nginx/1.31.6
+Date: Thu, 01 Oct 2026 19:28:59 GMT
+Content-Type: application/json
+Connection: keep-alive
+X-Backend: A
+Cache-Control: public, max-age=10
+
+Load Balancing Verification:
+$ for i in {1..6}; do curl -s -D - https://app.protocolx.test/api/status -o /dev/null | grep -i X-Backend; done
+X-Backend: B
+X-Backend: A
+X-Backend: B
+X-Backend: A
+X-Backend: B
+X-Backend: A
