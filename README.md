@@ -40,11 +40,11 @@ Backend A / Backend B
 - [x] LAN connectivity
 - [x] Machine IP inventory
 - [x] Private DNS
-- [ ] Backend A
-- [ ] Backend B
-- [ ] nginx reverse proxy
-- [ ] Load balancing
-- [ ] HTTPS/TLS
+- [x] Backend A
+- [x] Backend B
+- [x] nginx reverse proxy
+- [x] Load balancing
+- [x] HTTPS/TLS
 - [ ] HTTP caching
 - [ ] Wireshark DNS evidence
 - [ ] Wireshark TCP evidence
