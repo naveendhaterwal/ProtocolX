@@ -1,0 +1,104 @@
+============================================================
+ProtocolX — Phase 8: Failure Demonstration Evidence
+============================================================
+Date: 2026-10-02
+Architecture:
+  - Mac 1 (Client + DNS): 10.7.7.218
+  - Mac 2 (nginx Edge / LB): 10.7.12.189
+  - Mac 3 (Backend A): 10.7.16.69:3001
+  - Mac 4 (Backend B): 10.7.13.247:3002
+  - Target URL: https://app.protocolx.test/api/status
+
+============================================================
+STAGE 1: BEFORE FAILURE (Baseline: Both Backends Healthy)
+============================================================
+
+1. Check Backend B reachability (from Mac 1 to Mac 4):
+$ nc -zv -w 2 10.7.13.247 3002
+Connection to 10.7.13.247 port 3002 [tcp] succeeded!
+
+2. Baseline HTTP 200 OK Response:
+$ curl -i https://app.protocolx.test/api/status
+HTTP/1.1 200 OK
+Server: nginx/1.31.6
+Date: Thu, 01 Oct 2026 20:17:49 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+X-Backend: B
+Cache-Control: public, max-age=10
+
+{"backend":"B","status":"ok","host":"Archits-MacBook-Pro-4.local","port":3002}
+
+3. Normal Alternation (Round-Robin Across A & B):
+$ for i in {1..6}; do curl -s -D - https://app.protocolx.test/api/status -o /dev/null | grep -i X-Backend; done
+X-Backend: A
+X-Backend: B
+X-Backend: A
+X-Backend: B
+X-Backend: A
+X-Backend: B
+
+============================================================
+STAGE 2: DURING FAILURE (Backend B Stopped on Mac 4)
+============================================================
+
+1. Verify Backend B port is closed (from Mac 1 to Mac 4):
+$ nc -zv -w 2 10.7.13.247 3002
+nc: connectx to 10.7.13.247 port 3002 (tcp) failed: Connection refused
+
+2. Automatic Failover to Backend A (100% Traffic Served by A):
+$ for i in {1..6}; do curl -s -D - https://app.protocolx.test/api/status -o /dev/null | grep -i X-Backend; done
+X-Backend: A
+X-Backend: A
+X-Backend: A
+X-Backend: A
+X-Backend: A
+X-Backend: A
+
+3. Explicit HTTP 200 OK During Outage:
+$ curl -i https://app.protocolx.test/api/status
+HTTP/1.1 200 OK
+Server: nginx/1.31.6
+Date: Thu, 01 Oct 2026 20:18:42 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+X-Backend: A
+Cache-Control: public, max-age=10
+
+{
+  "status": "OK",
+  "backend": "Backend A",
+  "uptime": 5723.951029083
+}
+
+============================================================
+STAGE 3: AFTER RESTORATION (Backend B Restarted on Mac 4)
+============================================================
+
+1. Verify Backend B reachability restored:
+$ nc -zv -w 2 10.7.13.247 3002
+Connection to 10.7.13.247 port 3002 [tcp] succeeded!
+
+2. Alternation Resumed (Backend B Rejoined Load Balancing Pool):
+$ for i in {1..6}; do curl -s -D - https://app.protocolx.test/api/status -o /dev/null | grep -i X-Backend; done
+X-Backend: B
+X-Backend: A
+X-Backend: B
+X-Backend: A
+X-Backend: B
+X-Backend: A
+
+3. Explicit HTTP 200 OK Response from Restored Backend B:
+$ curl -i https://app.protocolx.test/api/status
+HTTP/1.1 200 OK
+Server: nginx/1.31.6
+Date: Thu, 01 Oct 2026 20:19:42 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+X-Backend: B
+Cache-Control: public, max-age=10
+
+{"backend":"B","status":"ok","host":"Archits-MacBook-Pro-4.local","port":3002}

@@ -49,7 +49,7 @@ Backend A / Backend B
 - [x] Wireshark DNS evidence
 - [x] Wireshark TCP evidence
 - [x] Wireshark TLS evidence
-- [ ] Failure demonstration
+- [x] Failure demonstration
 - [ ] Final verification
 - [ ] 5-minute demo video
 - [ ] Google Form submission
