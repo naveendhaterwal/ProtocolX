@@ -46,9 +46,9 @@ Backend A / Backend B
 - [x] Load balancing
 - [x] HTTPS/TLS
 - [x] HTTP caching
-- [ ] Wireshark DNS evidence
-- [ ] Wireshark TCP evidence
-- [ ] Wireshark TLS evidence
+- [x] Wireshark DNS evidence
+- [x] Wireshark TCP evidence
+- [x] Wireshark TLS evidence
 - [ ] Failure demonstration
 - [ ] Final verification
 - [ ] 5-minute demo video
