@@ -582,6 +582,6 @@ Through building and evaluating ProtocolX, the team gained hands-on experience w
 
 ---
 
-## Conclusion
+## Conclusion-
 
 ProtocolX demonstrates an end-to-end local network service architecture deployed on real physical hardware. By methodically layering DNS resolution, TCP transport, TLS encryption, HTTP reverse proxying, round-robin load balancing, caching directives, packet inspection, and fault recovery, the platform proves how distributed internet systems function under the hood in an observable, secure, and resilient environment.
