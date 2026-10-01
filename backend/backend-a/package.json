@@ -1,0 +1,11 @@
+{
+  "name": "backend-a",
+  "version": "1.0.0",
+  "description": "ProtocolX Backend A service",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "ProtocolX Team",
+  "license": "ISC"
+}
