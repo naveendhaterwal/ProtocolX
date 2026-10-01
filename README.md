@@ -30,16 +30,16 @@ Backend A / Backend B
 
 | Machine | Member | Role | Private IP | Interface |
 |---|---|---|---|---|
-| Mac 1 | Naveen | DNS + Client | TBD | TBD |
-| Mac 2 | Aditya | nginx + HTTPS + LB | TBD | TBD |
-| Mac 3 | Shagun | Backend A | TBD | TBD |
-| Mac 4 | Archit | Backend B | TBD | TBD |
+| Mac 1 | Naveen | DNS + Client | 10.7.7.218 | en0 |
+| Mac 2 | Aditya | nginx + HTTPS + LB | 10.7.12.189 | TBD |
+| Mac 3 | Shagun | Backend A | 10.7.16.69 | TBD |
+| Mac 4 | Archit | Backend B | 10.7.13.247 | TBD |
 
 ## Phase 1 Checklist
 
-- [ ] LAN connectivity
-- [ ] Machine IP inventory
-- [ ] Private DNS
+- [x] LAN connectivity
+- [x] Machine IP inventory
+- [x] Private DNS
 - [ ] Backend A
 - [ ] Backend B
 - [ ] nginx reverse proxy

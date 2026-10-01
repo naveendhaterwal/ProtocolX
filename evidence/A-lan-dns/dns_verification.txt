@@ -1,0 +1,84 @@
+=== 1. dnsmasq Configuration Syntax Test ===
+
+=== 2. dnsmasq Service / Process Status ===
+nobody           80283   0.0  0.0 435304048    688   ??  S    12:25AM   0:00.01 /opt/homebrew/opt/dnsmasq/sbin/dnsmasq -C /opt/homebrew/etc/dnsmasq.conf
+
+=== 3. Listening Sockets (Port 53) ===
+(privileged socket bound by nobody)
+
+=== 4. Client DNS Configuration (scutil --dns) ===
+DNS configuration
+
+resolver #1
+  nameserver[0] : 127.0.0.1
+  nameserver[1] : 1.1.1.1
+  nameserver[2] : 8.8.8.8
+  flags    : Request A records, Request AAAA records
+  reach    : 0x00030002 (Reachable,Local Address,Directly Reachable Address)
+
+resolver #2
+  domain   : local
+  options  : mdns
+  timeout  : 5
+  flags    : Request A records
+  reach    : 0x00000000 (Not Reachable)
+  order    : 300000
+
+resolver #3
+  domain   : 254.169.in-addr.arpa
+  options  : mdns
+  timeout  : 5
+  flags    : Request A records
+  reach    : 0x00000000 (Not Reachable)
+  order    : 300200
+
+
+=== 5. dig app.protocolx.test (System Resolver) ===
+
+; <<>> DiG 9.10.6 <<>> app.protocolx.test
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 56688
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;app.protocolx.test.		IN	A
+
+;; ANSWER SECTION:
+app.protocolx.test.	0	IN	A	10.7.12.189
+
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1#53(127.0.0.1)
+;; WHEN: Fri Oct 02 00:26:45 IST 2026
+;; MSG SIZE  rcvd: 63
+
+
+=== 6. dig @10.7.7.218 app.protocolx.test (Mac 1 LAN DNS IP) ===
+
+; <<>> DiG 9.10.6 <<>> @10.7.7.218 app.protocolx.test
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 8717
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;app.protocolx.test.		IN	A
+
+;; ANSWER SECTION:
+app.protocolx.test.	0	IN	A	10.7.12.189
+
+;; Query time: 3 msec
+;; SERVER: 10.7.7.218#53(10.7.7.218)
+;; WHEN: Fri Oct 02 00:26:45 IST 2026
+;; MSG SIZE  rcvd: 63
+
+
+=== 7. macOS Hostname Resolution (dscacheutil) ===
+name: app.protocolx.test
+ip_address: 10.7.12.189
+
