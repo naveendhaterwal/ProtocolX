@@ -269,7 +269,7 @@ A custom X.509 certificate was generated on Mac 2 using OpenSSL (`tls/openssl.cn
 - **Key Spec**: RSA 2048-bit
 
 ### Trust Store Installation on Client
-Rather than bypassing security using insecure options (`curl -k` or `--insecure`), the public certificate [`tls/app.protocolx.test.crt`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/tls/app.protocolx.test.crt) was imported into the macOS System Keychain on the client machine:
+Rather than bypassing security using insecure options (`curl -k` or `--insecure`), the public certificate [`tls/app.protocolx.test.crt`](tls/app.protocolx.test.crt) was imported into the macOS System Keychain on the client machine:
 ```bash
 sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain tls/app.protocolx.test.crt
 ```
@@ -309,22 +309,23 @@ Cache-Control: public, max-age=10
 
 ## Wireshark Evidence
 
-Packet captures and analysis screenshots were gathered on Mac 4 (Archit) and cataloged under [`evidence/C-wireshark/`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/evidence/C-wireshark/).
+Packet capture and protocol inspection was conducted by Archit (Mac 4) from network traces recorded during client verification on Mac 1 (`10.7.7.218`) communicating with the Nginx edge proxy (`10.7.12.189`), and cataloged under [`evidence/C-wireshark/`](evidence/C-wireshark/).
 
 ### 1. Raw Capture File
-- [`evidence/C-wireshark/protocolX.pcapng`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/evidence/C-wireshark/protocolX.pcapng): Contains live packet traces of DNS queries, TCP 3-way handshakes, and TLS exchanges.
+- [`evidence/C-wireshark/protocolX.pcapng`](evidence/C-wireshark/protocolX.pcapng): Contains live packet traces on interface `en0` between client (`10.7.7.218`) and edge proxy (`10.7.12.189`), covering ARP resolution, TCP 3-way handshakes, and TLS 1.3 record exchanges.
 
 ### 2. Protocol Breakdown
 - **DNS Protocol (`evidence/C-wireshark/ss/dns/`)**:
-  - `Standard query 0x... A app.protocolx.test` sent to `10.7.7.218:53`.
-  - `Standard query response 0x... A 10.7.12.189` returned by `dnsmasq`.
-- **TCP Handshake (`evidence/C-wireshark/ss/tls-tcp/`)**:
-  - Client sends `[SYN]` to `10.7.12.189:443`.
-  - Server replies with `[SYN, ACK]`.
-  - Client acknowledges with `[ACK]`, establishing the Layer 4 connection.
-- **TLS 1.3 Handshake & Application Data (`evidence/C-wireshark/ss/tls-tcp/`)**:
-  - Client transmits `Client Hello` proposing TLS 1.3 ciphers and SNI `app.protocolx.test`.
-  - Server responds with `Server Hello`, setting up ephemeral Diffie-Hellman keys.
+  - Captured on the local loopback interface (`lo0`) on Mac 1, where the client resolver directs queries locally to `127.0.0.1:53` (with `dnsmasq` also listening across LAN on `10.7.7.218:53`).
+  - `Standard query A app.protocolx.test` sent to `127.0.0.1:53`.
+  - `Standard query response A 10.7.12.189` returned by `dnsmasq` (TTL: 0s).
+- **TCP Handshake (`evidence/C-wireshark/protocolX.pcapng` & `evidence/C-wireshark/ss/tls-tcp/`)**:
+  - Client (`10.7.7.218:51248`) sends `[SYN]` to Edge Nginx (`10.7.12.189:443`).
+  - Server replies with `[SYN, ACK]` (seq 431400127, ack 310636430).
+  - Client acknowledges with `[ACK]` (ack 431400128), establishing the Layer 4 connection.
+- **TLS 1.3 Handshake & Application Data (`evidence/C-wireshark/protocolX.pcapng` & `evidence/C-wireshark/ss/tls-tcp/`)**:
+  - Client (`10.7.7.218`) transmits `Client Hello` proposing TLS 1.3 ciphers and SNI `app.protocolx.test`.
+  - Server (`10.7.12.189`) responds with `Server Hello`, setting up ephemeral Diffie-Hellman keys.
   - *Protocol Note*: Under TLS 1.3 (RFC 8446), the server certificate and encrypted handshake messages are ciphertext; they appear as `Application Data` or `Encrypted Handshake Message` packets rather than plain X.509 frames.
 
 ---
@@ -372,16 +373,16 @@ A real-time service failure and automatic recovery experiment was conducted by s
 
 ## Evidence Directory
 
-All terminal session transcripts, packet captures, and screenshots are organized under [`evidence/`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/evidence/):
+All terminal session transcripts, packet captures, and screenshots are organized under [`evidence/`](evidence/):
 
 | Area | Evidence Directory / File | Description |
 |---|---|---|
-| **LAN & DNS** | [`evidence/A-lan-dns/dns_verification.txt`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/evidence/A-lan-dns/dns_verification.txt) | `dnsmasq` syntax checks, service status, `scutil --dns`, and `dig` outputs |
-| **HTTPS & Load Balancing** | [`evidence/B-https-load-balancing/https_lb_verification.txt`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/evidence/B-https-load-balancing/https_lb_verification.txt) | Certificate SAN details, strict `curl` TLS verification, 4-request A/B load balancing |
-| **Wireshark Analysis** | [`evidence/C-wireshark/protocolX.pcapng`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/evidence/C-wireshark/protocolX.pcapng) | Raw PCAP-NG capture file covering DNS, TCP, and TLS packets |
-| **Wireshark Screenshots** | [`evidence/C-wireshark/ss/`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/evidence/C-wireshark/ss/) | Filtered screenshots of DNS queries and TCP/TLS handshakes |
-| **Caching Verification** | [`evidence/D-caching-failure/caching_verification.txt`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/evidence/D-caching-failure/caching_verification.txt) | Header verification of `Cache-Control: public, max-age=10` |
-| **Failure Demonstration** | [`evidence/D-caching-failure/failure-demo.txt`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/evidence/D-caching-failure/failure-demo.txt) | Complete 3-stage terminal log of the Backend B outage and recovery |
+| **LAN & DNS** | [`evidence/A-lan-dns/dns_verification.txt`](evidence/A-lan-dns/dns_verification.txt) | `dnsmasq` syntax checks, service status, `scutil --dns`, and `dig` outputs |
+| **HTTPS & Load Balancing** | [`evidence/B-https-load-balancing/https_lb_verification.txt`](evidence/B-https-load-balancing/https_lb_verification.txt) | Certificate SAN details, strict `curl` TLS verification, 4-request A/B load balancing |
+| **Wireshark Analysis** | [`evidence/C-wireshark/protocolX.pcapng`](evidence/C-wireshark/protocolX.pcapng) | Raw PCAP-NG capture file covering DNS, TCP, and TLS packets |
+| **Wireshark Screenshots** | [`evidence/C-wireshark/ss/`](evidence/C-wireshark/ss/) | Filtered screenshots of DNS queries and TCP/TLS handshakes |
+| **Caching Verification** | [`evidence/D-caching-failure/caching_verification.txt`](evidence/D-caching-failure/caching_verification.txt) | Header verification of `Cache-Control: public, max-age=10` |
+| **Failure Demonstration** | [`evidence/D-caching-failure/failure-demo.txt`](evidence/D-caching-failure/failure-demo.txt) | Complete 3-stage terminal log of the Backend B outage and recovery |
 
 ---
 
@@ -435,7 +436,7 @@ CN-Phase1-ProtocolX/
 Follow these instructions to run ProtocolX across four laptops on the same Wi-Fi network.
 
 ### Mac 3 (Shagun) — Start Backend A
-1. Navigate to [`backend/backend-a`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/backend/backend-a):
+1. Navigate to [`backend/backend-a`](backend/backend-a):
    ```bash
    cd backend/backend-a
    ```
@@ -449,7 +450,7 @@ Follow these instructions to run ProtocolX across four laptops on the same Wi-Fi
    ```
 
 ### Mac 4 (Archit) — Start Backend B
-1. Navigate to [`backend/backend-b`](file:///Users/n2/Desktop/CN/CN-Phase1-ProtocolX/backend/backend-b):
+1. Navigate to [`backend/backend-b`](backend/backend-b):
    ```bash
    cd backend/backend-b
    ```
@@ -463,15 +464,16 @@ Follow these instructions to run ProtocolX across four laptops on the same Wi-Fi
    ```
 
 ### Mac 2 (Aditya) — Start nginx Edge
-1. Validate nginx configuration syntax:
+1. In `nginx/nginx.conf`, set `ssl_certificate` and `ssl_certificate_key` to your local clone's path (e.g. replace `/path/to/tls/` with `$(pwd)/tls/`).
+2. Validate nginx configuration syntax:
    ```bash
    sudo nginx -t -c $(pwd)/nginx/nginx.conf
    ```
-2. Start `nginx`:
+3. Start `nginx`:
    ```bash
    sudo nginx -c $(pwd)/nginx/nginx.conf
    ```
-3. Confirm listening on ports 80 and 443:
+4. Confirm listening on ports 80 and 443:
    ```bash
    sudo lsof -nP -iTCP:80,443 -sTCP:LISTEN
    ```
@@ -582,6 +584,6 @@ Through building and evaluating ProtocolX, the team gained hands-on experience w
 
 ---
 
-## Conclusion-
+## Conclusion
 
 ProtocolX demonstrates an end-to-end local network service architecture deployed on real physical hardware. By methodically layering DNS resolution, TCP transport, TLS encryption, HTTP reverse proxying, round-robin load balancing, caching directives, packet inspection, and fault recovery, the platform proves how distributed internet systems function under the hood in an observable, secure, and resilient environment.

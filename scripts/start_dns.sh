@@ -1,6 +1,20 @@
 #!/bin/bash
 set -e
 
+# Require root privileges
+if [ "$EUID" -ne 0 ]; then
+    echo "Error: Please run as root (sudo ./scripts/start_dns.sh)"
+    exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Deploy repository dnsmasq configuration to Homebrew etc path
+echo "Deploying dnsmasq configuration from repository..."
+mkdir -p /opt/homebrew/etc
+cp "$REPO_ROOT/dns/dnsmasq.conf" /opt/homebrew/etc/dnsmasq.conf
+
 # Stop any running dnsmasq instance
 killall dnsmasq 2>/dev/null || true
 
