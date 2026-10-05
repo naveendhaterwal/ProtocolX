@@ -147,7 +147,8 @@ Ranked by impact on a reader or grader reproducing the project.
 | 3 | Medium | `scripts/start_dns.sh` starts dnsmasq with `/opt/homebrew/etc/dnsmasq.conf` but never copies `dns/dnsmasq.conf` there, while the README says the script "deploys configuration". Fresh setups would run with the wrong config. | Add `cp "$(dirname "$0")/../dns/dnsmasq.conf" /opt/homebrew/etc/dnsmasq.conf` before launching. Also add a check that it is run as root. |
 | 4 | Medium | Failover relies on nginx defaults; there is no `max_fails` / `fail_timeout` / `proxy_next_upstream` and no `proxy_read_timeout`. A hung (not refused) backend would stall requests. | Set explicit values (e.g. `max_fails=2 fail_timeout=10s`, `proxy_next_upstream error timeout http_502 http_503`) and extend the demo with a network-partition case. |
 | 5 | Medium | Backends accept `GET` only; `HEAD /` yields 404 through the proxy. | Handle `HEAD` in both backends (or document). |
-| 6 | Low | Backend A and B differ in response shape, logging, port configuration, and packaging. | Align to one template; add `package.json` to B; make A log requests. |
+| 6 | Medium | Wireshark screenshots show DNS on loopback (127.0.0.1) and client IP 10.7.7.218, i.e. captured on Mac 1, but the README attributes the capture to Mac 4 and says the query goes to 10.7.7.218:53. | Correct the README or re-capture on the intended host. |
+| 6a | Low | Backend A and B differ in response shape, logging, port configuration, and packaging. | Align to one template; add `package.json` to B; make A log requests. |
 | 7 | Low | Evidence gaps: empty `dnsmasq` syntax-test output and placeholder socket listing in `dns_verification.txt`; evidence dated as UTC in headers but IST in `dig`. | Re-capture `dnsmasq --test` and `sudo lsof -iUDP:53`; note timezones. |
 | 8 | Low | Security hardening absent: backends listen on all interfaces and receive plaintext from nginx; no HSTS; TLS cipher policy left at defaults; cert expires 2027-10-01. | Document as accepted scope for a lab; optionally bind backends to LAN IP, add `Strict-Transport-Security`, calendar certificate renewal. |
 | 9 | Low | Housekeeping: heading typo "Conclusion-"; empty `docs/`, `wireshark/`, `.gitkeep` files; six git identities for four people; a stale copy of `evidence/` and four empty `mac*` folders exist one level above the repo (not tracked). | Fix typo; merge identities via `.mailmap`; delete or ignore the stray parent-folder copies. |
@@ -166,6 +167,20 @@ proxy_read_timeout 5s;
 ```
 
 ---
+
+## 7a. Supplementary Evidence (added 5 Oct 2026)
+
+Files in `evidence/E-terminal-captures/` were reviewed and placed in the Word report (`docs/ProtocolX_Project_Report.docx`, Figures 1–12):
+
+| File | Shows |
+|---|---|
+| `screenshots/dig_private_dns_10.7.7.218.png` | Private DNS: NOERROR, `aa` flag, `10.7.12.189` |
+| `screenshots/dig_public_dns_8.8.8.8_nxdomain.png` | Public DNS returns NXDOMAIN for `.test` |
+| `screenshots/caching_and_load_balancing_verification.png` | `Cache-Control` header and A/B alternation |
+| `recordings/https_tls_lb_verification_walkthrough.mov` | Scroll through `https_lb_verification.txt` |
+| `recordings/failover_demo_walkthrough.mov` | Scroll through `failure-demo.txt` |
+
+The recordings and the last screenshot replay saved evidence text files; only the two `dig` screenshots are fresh live runs.
 
 ## 8. Team and Contribution Summary
 
