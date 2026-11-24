@@ -206,7 +206,7 @@ async function runCheck() {
       console.warn(`Server responded with status ${res.status} to report.`);
     }
   } catch (err) {
-    console.error(`Failed to report to central server: ${err.message}`);
+    console.error(`Failed to report to central server: ${err.message}`, err.cause ? (err.cause.code || err.cause.message || err.cause) : '');
   }
 }
 
