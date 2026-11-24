@@ -1,0 +1,12 @@
+{
+  "name": "protocolx-agent",
+  "version": "1.0.0",
+  "description": "ProtocolX Distributed Node.js Monitoring Agent",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.1"
+  }
+}
