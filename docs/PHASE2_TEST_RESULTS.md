@@ -1,10 +1,24 @@
 # PROTOCOLX PHASE 2 — EMPIRICAL VERIFICATION & TEST RESULTS
 
-**Date:** November 24, 2026  
+**Date:** November 25, 2026  
 **Controller:** Mac 1 (`10.7.11.221`)  
 **Network Subnet:** `10.7.0.0/19`  
 
 All test results below represent verified terminal commands executed across physical machines on the private network. No results are simulated or fabricated.
+
+---
+
+## 0. Honest Completion Status (Code/Config vs. Live Resilience)
+
+The code, configuration, and central control plane hardening are complete; live multi-node DNS/Nginx/PF resilience demonstrations remain **pending** physical machine wake-up (Mac 2) and `sudo` execution on Mac 1, Mac 2, Mac 3, and Mac 4:
+
+- [x] **4-Mac Network Inventory & SSH Keys**: Verified (`mac1`, `mac2`, `mac3`, `mac4` enumerated; Ed25519 SSH working when awake).
+- [x] **Backend A (`:3001`) & Backend B (`:3002`)**: Verified live HTTP 200 with `X-Backend: A` / `X-Backend: B`.
+- [x] **Dashboard Auth, Sessions, CSRF & Replay Protection**: Verified (`scrypt` hash in gitignored `.env`, `HttpOnly` cookie, `X-CSRF-Token`, nonce replay rejection).
+- [ ] **Shagun's Mac 2 Awake & Nginx Started**: Pending (Mac 2 sleeps after 30s on battery).
+- [ ] **Primary DNS (`mac1`) & Backup DNS (`mac4`) Live**: Pending (`sudo` port 53 bind).
+- [ ] **End-to-End HTTPS (`app.protocolx.test` without `-k`), A/B Load Balancing, Failover, 30s TTL Experiment, PF Isolation & Rollback, Standby Edge Cutover**: Pending live run once Mac 2 & DNS are active.
+- [ ] **All 4 Nodes Reporting `HEALTHY` on Dashboard**: Currently only Mac 3 reports `HEALTHY`; Mac 1/4 are `DEGRADED` (port 53 DNS not yet started) and Mac 2 is `OFFLINE` (sleeping).
 
 ---
 
@@ -198,40 +212,41 @@ curl -s http://127.0.0.1:4000/api/status | jq '.suggestions'
 ]
 ```
 
-### Test 5.2: Authenticated Action Execution
-```bash
-curl -s -X POST http://127.0.0.1:4000/api/actions/execute \
-  -H "Content-Type: application/json" \
-  -d '{"actionId":"RESTART_BACKEND_A","passcode":"protocolx-admin","user":"naveen","confirmed":true}'
-```
-**Output:**
-```json
-{
-  "success": true,
-  "result": {
-    "success": true,
-    "details": "Backend A service restart triggered."
-  }
-}
-```
+### Test 5.2: Hardened Session Authentication, CSRF & Replay Protection
+Credentials are stored as salted `scrypt` hashes in gitignored `server/.env` (never hardcoded in source or docs).
 
-### Test 5.3: Persistent Audit Record
 ```bash
-curl -s http://127.0.0.1:4000/api/audit | jq '.audits[0]'
+# 1. Unauthenticated execute -> HTTP 401
+curl -s -o /dev/null -w "HTTP %{http_code}\n" -X POST http://127.0.0.1:4000/api/actions/execute \
+  -H "Content-Type: application/json" -d '{"actionId":"CHECK_PRIMARY_DNS","confirmed":true}'
+# Output: HTTP 401
+
+# 2. Invalid credentials -> HTTP 401
+curl -s -X POST http://127.0.0.1:4000/api/auth/login \
+  -H "Content-Type: application/json" -d '{"username":"Naveen","password":"<invalid>"}'
+# Output: {"success":false,"error":"Invalid administrator credentials."}
+
+# 3. Valid login -> HTTP 200 + HttpOnly; SameSite=Strict cookie + csrfToken
+LOGIN_RES=$(curl -s -c /tmp/px_cookies.txt -X POST http://127.0.0.1:4000/api/auth/login \
+  -H "Content-Type: application/json" -d '{"username":"Naveen","password":"<ADMIN_PASSWORD>"}')
+# Output: {"success":true,"user":"Naveen","csrfToken":"<64-hex-csrf-token>"}
+
+# 4. Missing CSRF token -> HTTP 403
+curl -s -b /tmp/px_cookies.txt -X POST http://127.0.0.1:4000/api/actions/execute \
+  -H "Content-Type: application/json" -d '{"actionId":"CHECK_BACKUP_DNS","confirmed":true}'
+# Output: {"success":false,"error":"Security check failed: Invalid or missing CSRF token."}
+
+# 5. Valid Cookie + CSRF + Nonce + Timestamp -> HTTP 200
+curl -s -b /tmp/px_cookies.txt -X POST http://127.0.0.1:4000/api/actions/execute \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $CSRF" -H "X-Request-Nonce: $NONCE" -H "X-Request-Timestamp: $TS" \
+  -d "{\"actionId\":\"RESTART_BACKEND_B\",\"confirmed\":true,\"nonce\":\"$NONCE\",\"timestamp\":\"$TS\"}"
+# Output: {"success":true,"result":{"success":true,"details":"Backend B service restart triggered."}}
+
+# 6. Replay same Nonce -> HTTP 403
+# Output: {"success":false,"error":"Security check failed: Replay detected: nonce already used"}
 ```
-**Output:**
-```json
-{
-  "id": 3,
-  "timestamp": 1795544824084,
-  "action_id": "RESTART_BACKEND_A",
-  "target_machine": "mac3",
-  "user": "naveen",
-  "status": "SUCCESS",
-  "details": "Backend A service restart triggered."
-}
-```
-**Conclusion:** Suggest Mode generates precise diagnostics. Execute Mode strictly verifies administrative credentials, performs authorized actions, and persists the audit record.
+**Conclusion:** Suggest Mode generates diagnostics. Execute Mode enforces `scrypt` password verification, `HttpOnly; SameSite=Strict` session cookies, per-session CSRF tokens, single-use nonce + timestamp replay protection, and persistent audit logging.
 
 ---
 

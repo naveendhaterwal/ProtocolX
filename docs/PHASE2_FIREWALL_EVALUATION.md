@@ -24,8 +24,9 @@ In a distributed microservice topology, backend application servers (`Backend A:
 ### Access Control Matrix
 | Source | Port 22 (SSH) | Port 3001 (Backend A) | Port 3002 (Backend B) | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Mac 1 (10.7.11.221)** | ALLOW | ALLOW (Diagnostics) | ALLOW (Diagnostics) | Management |
+| **Mac 1 (10.7.11.221)** | ALLOW | **DROP / BLOCK** | **DROP / BLOCK** | Management (SSH only) |
 | **Mac 2 (10.7.10.188)** | ALLOW | ALLOW (Nginx Upstream) | ALLOW (Nginx Upstream) | Reverse Proxy |
+| **Loopback (`lo0`)** | N/A | ALLOW (Local Agent Probe) | ALLOW (Local Agent Probe) | Localhost |
 | **Arbitrary LAN Hosts** | ALLOW | **DROP / BLOCK** | **DROP / BLOCK** | Unauthorized |
 
 ---
@@ -33,27 +34,26 @@ In a distributed microservice topology, backend application servers (`Backend A:
 ## 3. Ruleset Specification & Safety Precautions
 
 To avoid accidental administrator lockout, every rule strictly observes the following non-negotiable principles:
-1. **Loopback Protection (`set skip on lo0`):** Internal machine communication is never filtered.
+1. **Loopback Protection (`set skip on lo0`):** Internal machine communication (including the local monitoring agent probing `127.0.0.1`) is never filtered.
 2. **SSH Protection (`pass in proto tcp to any port 22`):** Administrative SSH connections remain open unconditionally.
-3. **Syntax Dry-Run (`pfctl -vnf`):** Every configuration is checked for syntax errors prior to loading.
-4. **Instant Rollback Script (`scripts/rollback_firewall.sh`):** A single execution disables PF and restores factory defaults.
+3. **Rule Ordering (`quick`):** Specific `pass in quick` for Mac 2 (`10.7.10.188`) is placed *before* the catch-all `block in quick` rule.
+4. **Syntax Dry-Run (`pfctl -vnf`):** Every configuration is checked for syntax errors prior to loading.
+5. **Backup-and-Restore Rollback (`scripts/rollback_firewall.sh`):** Before applying rules, `apply_firewall.sh` saves the pre-existing PF enabled/disabled status and active ruleset to `/var/tmp/protocolx_pf_backup`. Rollback restores the exact saved ruleset and prior PF state (refusing to blindly flush/disable if no backup exists).
 
 ### Mac 3 Rule (`firewall/pf_backend_a.conf`)
 ```pf
 set skip on lo0
 pass in proto tcp to any port 22
+pass in quick inet proto tcp from 10.7.10.188 to any port 3001
 block in quick proto tcp to any port 3001
-pass in quick proto tcp from 10.7.10.188 to any port 3001
-pass in quick proto tcp from 10.7.11.221 to any port 3001
 ```
 
 ### Mac 4 Rule (`firewall/pf_backend_b.conf`)
 ```pf
 set skip on lo0
 pass in proto tcp to any port 22
+pass in quick inet proto tcp from 10.7.10.188 to any port 3002
 block in quick proto tcp to any port 3002
-pass in quick proto tcp from 10.7.10.188 to any port 3002
-pass in quick proto tcp from 10.7.11.221 to any port 3002
 ```
 
 ---
@@ -82,4 +82,4 @@ sudo ./scripts/apply_firewall.sh mac4   # On Mac 4
 ```bash
 sudo ./scripts/rollback_firewall.sh
 ```
-This flushes all active PF anchors and tables (`pfctl -F all`) and re-evaluates `/etc/pf.conf` if present, ensuring complete network recovery within 1 second.
+This reads `/var/tmp/protocolx_pf_backup/pf_status.bak` and `/var/tmp/protocolx_pf_backup/pf_rules.bak`, restores the exact previously saved PF ruleset via `pfctl -f`, and restores the prior `enabled` or `disabled` PF state.

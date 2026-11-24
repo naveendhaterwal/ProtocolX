@@ -3,6 +3,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+BACKUP_DIR="/var/tmp/protocolx_pf_backup"
 
 TARGET="${1:-mac3}"
 
@@ -22,15 +23,37 @@ echo "ProtocolX Firewall Application: $TARGET (Port $PORT)"
 echo "Ruleset: $CONF"
 echo "======================================================="
 
-# Verify syntax first
-echo "[1/3] Verifying pfctl syntax without applying..."
+# 1. Verify syntax first before touching active firewall
+echo "[1/4] Verifying pfctl syntax without applying..."
 sudo pfctl -vnf "$CONF"
 
-# Enable and load rules
-echo "[2/3] Loading packet filter rules..."
+# 2. Save pre-change PF state if no active backup exists yet
+echo "[2/4] Backing up existing PF state to $BACKUP_DIR..."
+sudo mkdir -p "$BACKUP_DIR"
+if [ ! -f "$BACKUP_DIR/pf_status.bak" ]; then
+    if sudo pfctl -s info 2>/dev/null | grep -qi "Status: Enabled"; then
+        echo "enabled" | sudo tee "$BACKUP_DIR/pf_status.bak" >/dev/null
+    else
+        echo "disabled" | sudo tee "$BACKUP_DIR/pf_status.bak" >/dev/null
+    fi
+
+    # Save active NAT/RDR and Filter rules; fallback to /etc/pf.conf if empty
+    sudo pfctl -sn 2>/dev/null | sudo tee "$BACKUP_DIR/pf_rules.bak" >/dev/null || true
+    sudo pfctl -sr 2>/dev/null | sudo tee -a "$BACKUP_DIR/pf_rules.bak" >/dev/null || true
+    if [ ! -s "$BACKUP_DIR/pf_rules.bak" ] && [ -f /etc/pf.conf ]; then
+        sudo cp /etc/pf.conf "$BACKUP_DIR/pf_rules.bak"
+    fi
+    echo "Saved baseline PF state ($(cat "$BACKUP_DIR/pf_status.bak"))."
+else
+    echo "Existing PF backup found at $BACKUP_DIR; preserving original baseline."
+fi
+
+# 3. Enable and load rules
+echo "[3/4] Loading packet filter rules..."
 sudo pfctl -e -f "$CONF" 2>/dev/null || sudo pfctl -f "$CONF"
 
-echo "[3/3] Inspecting active anchor rules..."
+# 4. Inspect active rules
+echo "[4/4] Inspecting active rules for port $PORT..."
 sudo pfctl -sr | grep "$PORT" || true
 
-echo "SUCCESS: Firewall isolation active. Only 10.7.10.188 and 10.7.11.221 are permitted."
+echo "SUCCESS: Firewall isolation active. Only 10.7.10.188 (Mac 2 Edge) is permitted on port $PORT."

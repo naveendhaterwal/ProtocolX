@@ -4,21 +4,22 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const db = require('./db');
+const auth = require('./auth');
 const { MACHINES, APPROVED_ACTIONS, SUGGESTIONS, formatSimpleLog } = require('../shared/schema');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: true,
+    credentials: true,
     methods: ['GET', 'POST']
   }
 });
 
 const PORT = process.env.PORT || 4000;
-const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || 'protocolx-admin';
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 // Serve static dashboard if built
@@ -149,31 +150,128 @@ app.post('/api/agent/report', (req, res) => {
 });
 
 /**
- * Execute an approved action (strictly authenticated & audited)
+ * Authentication & Session endpoints
  */
-app.post('/api/actions/execute', async (req, res) => {
-  const { actionId, passcode, user, confirmed } = req.body;
+app.get('/api/auth/session', (req, res) => {
+  const session = auth.getSession(req);
+  if (!session) {
+    return res.json({ authenticated: false });
+  }
+  res.json({
+    authenticated: true,
+    user: session.user,
+    csrfToken: session.csrfToken
+  });
+});
 
-  // 1. Authentication check
-  if (!passcode || passcode !== ADMIN_PASSCODE) {
-    db.insertAuditLog(actionId || 'UNKNOWN', 'unknown', user || 'anonymous', 'DENIED', 'Invalid passcode');
-    return res.status(401).json({
+app.post('/api/auth/login', (req, res) => {
+  const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+  if (!auth.checkLoginRateLimit(clientIp)) {
+    db.insertAuditLog('LOGIN', 'mac1', 'unknown', 'RATE_LIMITED', `Too many failed login attempts from ${clientIp}`);
+    return res.status(429).json({
       success: false,
-      error: 'Authentication failed. Please provide the valid admin passcode.'
+      error: 'Too many failed login attempts. Please wait 60 seconds before retrying.'
     });
   }
 
-  // 2. Action validation against strict whitelist
+  const storedHash = auth.getStoredPasswordHash();
+  if (!storedHash) {
+    return res.status(503).json({
+      success: false,
+      error: 'Server authentication is not configured. Run "node scripts/set_admin_password.js" on Mac 1.'
+    });
+  }
+
+  const { username, password } = req.body || {};
+  const operator = (typeof username === 'string' && username.trim()) ? username.trim().slice(0, 64) : 'Admin';
+
+  if (!auth.verifyPassword(password, storedHash)) {
+    auth.recordFailedLogin(clientIp);
+    db.insertAuditLog('LOGIN', 'mac1', operator, 'DENIED', `Invalid credentials from ${clientIp}`);
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid administrator credentials.'
+    });
+  }
+
+  auth.clearLoginAttempts(clientIp);
+  const session = auth.createSession(operator);
+  const maxAgeSec = Math.floor(auth.SESSION_TTL_MS / 1000);
+  res.setHeader(
+    'Set-Cookie',
+    `protocolx_sid=${encodeURIComponent(session.id)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAgeSec}`
+  );
+  db.insertAuditLog('LOGIN', 'mac1', operator, 'SUCCESS', `Authenticated session issued for ${clientIp}`);
+  res.json({
+    success: true,
+    user: session.user,
+    csrfToken: session.csrfToken
+  });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const session = auth.getSession(req);
+  if (session) {
+    if (!auth.verifyCsrf(session, req)) {
+      return res.status(403).json({ success: false, error: 'Invalid CSRF token.' });
+    }
+    db.insertAuditLog('LOGOUT', 'mac1', session.user, 'SUCCESS', 'Session terminated by user');
+    auth.destroySession(req);
+  }
+  res.setHeader('Set-Cookie', 'protocolx_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+  res.json({ success: true });
+});
+
+/**
+ * Execute an approved action (strictly authenticated via session + CSRF + replay protection & audited)
+ */
+app.post('/api/actions/execute', async (req, res) => {
+  const { actionId, confirmed, nonce, timestamp } = req.body || {};
+
+  // 1. Session authentication check
+  const session = auth.getSession(req);
+  if (!session) {
+    db.insertAuditLog(actionId || 'UNKNOWN', 'unknown', 'anonymous', 'DENIED', 'Missing or expired session');
+    return res.status(401).json({
+      success: false,
+      error: 'Authentication required. Please sign in to Execute Mode.'
+    });
+  }
+
+  // 2. CSRF token verification
+  if (!auth.verifyCsrf(session, req)) {
+    db.insertAuditLog(actionId || 'UNKNOWN', 'unknown', session.user, 'DENIED', 'CSRF token mismatch');
+    return res.status(403).json({
+      success: false,
+      error: 'Security check failed: Invalid or missing CSRF token.'
+    });
+  }
+
+  // 3. Replay protection (nonce + timestamp window)
+  const reqNonce = req.headers['x-request-nonce'] || nonce;
+  const reqTs = req.headers['x-request-timestamp'] || timestamp;
+  const replayCheck = auth.verifyAndConsumeNonce(reqNonce, reqTs);
+  if (!replayCheck.ok) {
+    db.insertAuditLog(actionId || 'UNKNOWN', 'unknown', session.user, 'REPLAY_BLOCKED', replayCheck.reason);
+    return res.status(403).json({
+      success: false,
+      error: `Security check failed: ${replayCheck.reason}`
+    });
+  }
+
+  const user = session.user;
+
+  // 4. Action validation against strict whitelist
   const action = APPROVED_ACTIONS[actionId];
   if (!action) {
-    db.insertAuditLog(actionId, 'unknown', user || 'admin', 'REJECTED', 'Action is not in approved whitelist');
+    db.insertAuditLog(actionId, 'unknown', user, 'REJECTED', 'Action is not in approved whitelist');
     return res.status(400).json({
       success: false,
       error: 'Action rejected: Arbitrary commands are strictly forbidden.'
     });
   }
 
-  // 3. Confirmation check
+  // 5. Confirmation check
   if (!confirmed) {
     return res.status(400).json({
       success: false,

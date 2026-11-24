@@ -16,12 +16,28 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'suggest' | 'execute' | 'logs'
   const [copiedCmd, setCopiedCmd] = useState(null);
 
+  // Session & Authentication state
+  const [authSession, setAuthSession] = useState({ authenticated: false, user: null, csrfToken: null });
+  const [loginUsername, setLoginUsername] = useState('Naveen (Mac 1)');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [authError, setAuthError] = useState(null);
+  const [loggingIn, setLoggingIn] = useState(false);
+
   // Execute modal state
   const [selectedAction, setSelectedAction] = useState(null);
-  const [passcode, setPasscode] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [execResult, setExecResult] = useState(null);
+
+  const fetchSession = async () => {
+    try {
+      const res = await fetch('/api/auth/session', { credentials: 'include' });
+      const data = await res.json();
+      setAuthSession(data);
+    } catch (err) {
+      console.error('Error checking auth session:', err);
+    }
+  };
 
   const fetchStatus = async () => {
     try {
@@ -54,6 +70,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    fetchSession();
     fetchStatus();
     fetchLogs();
     fetchAudits();
@@ -97,23 +114,80 @@ export default function App() {
     setTimeout(() => setCopiedCmd(null), 2500);
   };
 
+  const generateNonce = () => {
+    const arr = new Uint8Array(16);
+    window.crypto.getRandomValues(arr);
+    return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!loginPassword) return;
+    setLoggingIn(true);
+    setAuthError(null);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setAuthError(data.error || 'Authentication failed');
+      } else {
+        setAuthSession({ authenticated: true, user: data.user, csrfToken: data.csrfToken });
+        setLoginPassword('');
+        fetchAudits();
+      }
+    } catch (err) {
+      setAuthError(err.message);
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-CSRF-Token': authSession.csrfToken || '' }
+      });
+    } finally {
+      setAuthSession({ authenticated: false, user: null, csrfToken: null });
+      fetchAudits();
+    }
+  };
+
   const handleExecuteAction = async () => {
-    if (!selectedAction || !passcode || !confirmed) return;
+    if (!selectedAction || !confirmed || !authSession.authenticated) return;
     setExecuting(true);
     setExecResult(null);
 
     try {
+      const nonce = generateNonce();
+      const timestamp = String(Date.now());
       const res = await fetch('/api/actions/execute', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': authSession.csrfToken || '',
+          'X-Request-Nonce': nonce,
+          'X-Request-Timestamp': timestamp
+        },
         body: JSON.stringify({
           actionId: selectedAction.id,
-          passcode,
           confirmed: true,
-          user: 'Naveen (Mac 1)'
+          nonce,
+          timestamp
         })
       });
       const data = await res.json();
+      if (res.status === 401) {
+        setAuthSession({ authenticated: false, user: null, csrfToken: null });
+      }
       setExecResult(data);
       fetchAudits();
       fetchStatus();
@@ -512,28 +586,64 @@ export default function App() {
 
               {/* Execution Authorization Console */}
               <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-5 space-y-4">
-                <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-amber-400" />
-                  Authorization Console
+                <h3 className="font-bold text-white text-sm flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-amber-400" />
+                    Authorization Console
+                  </span>
+                  {authSession.authenticated && (
+                    <button
+                      onClick={handleLogout}
+                      className="text-[11px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                    >
+                      Sign Out ({authSession.user})
+                    </button>
+                  )}
                 </h3>
 
-                {selectedAction ? (
+                {!authSession.authenticated ? (
+                  <form onSubmit={handleLogin} className="space-y-3 p-3 rounded-lg bg-slate-950 border border-slate-800">
+                    <p className="text-xs text-slate-400">
+                      Sign in with your administrator credentials to start an authenticated CSRF-protected session.
+                    </p>
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-slate-300">Operator Name</label>
+                      <input
+                        type="text"
+                        value={loginUsername}
+                        onChange={(e) => setLoginUsername(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-slate-300">Admin Password</label>
+                      <input
+                        type="password"
+                        placeholder="Enter administrator password"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                      />
+                    </div>
+                    {authError && (
+                      <div className="text-xs text-rose-400 bg-rose-950/40 border border-rose-500/30 rounded px-2.5 py-1.5">
+                        {authError}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={!loginPassword || loggingIn}
+                      className="w-full py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 font-semibold text-xs text-white transition"
+                    >
+                      {loggingIn ? 'Authenticating...' : 'Sign In to Execute Mode'}
+                    </button>
+                  </form>
+                ) : selectedAction ? (
                   <div className="space-y-4">
                     <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs space-y-1">
                       <span className="text-slate-400">Selected Action:</span>
                       <p className="font-bold text-white">{selectedAction.label}</p>
                       <p className="text-slate-400">{selectedAction.description}</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-300">Admin Passcode</label>
-                      <input
-                        type="password"
-                        placeholder="protocolx-admin"
-                        value={passcode}
-                        onChange={(e) => setPasscode(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono"
-                      />
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -550,7 +660,7 @@ export default function App() {
                     </div>
 
                     <button
-                      disabled={!passcode || !confirmed || executing}
+                      disabled={!confirmed || executing}
                       onClick={handleExecuteAction}
                       className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30"
                     >
