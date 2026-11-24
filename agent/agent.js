@@ -184,23 +184,31 @@ async function runCheck() {
     }
   }
 
-  // Send report to central server via HTTP
+  const reportPayload = {
+    machine_id: machineId,
+    ip: currentIp,
+    services: servicesStatus,
+    logs: generatedLogs,
+    metadata: {
+      hostname: os.hostname(),
+      platform: os.platform(),
+      uptime: os.uptime(),
+      loadAvg: os.loadavg()
+    }
+  };
+
+  // If WebSocket is connected, emit report directly over Socket.IO
+  if (socket && socket.connected) {
+    socket.emit('agent-report', reportPayload);
+    return;
+  }
+
+  // Fallback: Send report to central server via HTTP
   try {
     const res = await fetch(`${serverUrl}/api/agent/report`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        machine_id: machineId,
-        ip: currentIp,
-        services: servicesStatus,
-        logs: generatedLogs,
-        metadata: {
-          hostname: os.hostname(),
-          platform: os.platform(),
-          uptime: os.uptime(),
-          loadAvg: os.loadavg()
-        }
-      })
+      body: JSON.stringify(reportPayload)
     });
     if (!res.ok) {
       console.warn(`Server responded with status ${res.status} to report.`);

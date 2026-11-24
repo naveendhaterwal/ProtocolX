@@ -93,13 +93,10 @@ app.get('/api/audit', (req, res) => {
   res.json({ success: true, audits });
 });
 
-/**
- * Ingest heartbeat / report from monitoring agents
- */
-app.post('/api/agent/report', (req, res) => {
-  const { machine_id, ip, services, logs, metadata } = req.body;
+function processAgentReport(data) {
+  const { machine_id, ip, services, logs, metadata } = data;
   if (!machine_id || !MACHINES[machine_id]) {
-    return res.status(400).json({ success: false, error: 'Invalid machine_id' });
+    return { success: false, error: 'Invalid machine_id' };
   }
 
   // Update machine heartbeat
@@ -137,8 +134,18 @@ app.post('/api/agent/report', (req, res) => {
 
   // Notify dashboard of updated state
   io.emit('status-update', { machine_id, timestamp: Date.now() });
+  return { success: true };
+}
 
-  res.json({ success: true });
+/**
+ * Ingest heartbeat / report from monitoring agents
+ */
+app.post('/api/agent/report', (req, res) => {
+  const result = processAgentReport(req.body);
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
 });
 
 /**
@@ -221,6 +228,12 @@ io.on('connection', (socket) => {
       socket.join(`agent:${machine_id}`);
       console.log(`Agent registered for ${MACHINES[machine_id].name} (socket ${socket.id})`);
     }
+  });
+
+  // Agent heartbeat & report via WebSocket
+  socket.on('agent-report', (data, callback) => {
+    const res = processAgentReport(data);
+    if (typeof callback === 'function') callback(res);
   });
 
   // Client joining dashboard
