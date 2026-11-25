@@ -1,0 +1,74 @@
+=== Test E: Standby Edge on Mac 4 (Unprivileged Ports 8080/8443) ===
+--- 1. Inspect nginx_standby.conf & TLS SAN ---
+            X509v3 Subject Alternative Name: 
+                DNS:app.protocolx.test
+            X509v3 Basic Constraints: critical
+nginx: the configuration file /Users/flexer/Documents/Projects/CN/ProtocolX/nginx/nginx_standby.conf syntax is ok
+nginx: configuration file /Users/flexer/Documents/Projects/CN/ProtocolX/nginx/nginx_standby.conf test is successful
+COMMAND   PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+nginx   53017 flexer    6u  IPv4 0xb52a261a78ad3230      0t0  TCP *:8080 (LISTEN)
+nginx   53017 flexer    7u  IPv4 0x984eba086ec2d84b      0t0  TCP *:8443 (LISTEN)
+nginx   53019 flexer    6u  IPv4 0xb52a261a78ad3230      0t0  TCP *:8080 (LISTEN)
+nginx   53019 flexer    7u  IPv4 0x984eba086ec2d84b      0t0  TCP *:8443 (LISTEN)
+--- 2. TLS Handshake & SNI Check on 10.7.18.164:8443 ---
+depth=0 C = IN, ST = State, L = City, O = ProtocolX, CN = app.protocolx.test
+depth=0 C = IN, ST = State, L = City, O = ProtocolX, CN = app.protocolx.test
+CONNECTED(00000003)
+ 0 s:/C=IN/ST=State/L=City/O=ProtocolX/CN=app.protocolx.test
+   i:/C=IN/ST=State/L=City/O=ProtocolX/CN=app.protocolx.test
+subject=/C=IN/ST=State/L=City/O=ProtocolX/CN=app.protocolx.test
+issuer=/C=IN/ST=State/L=City/O=ProtocolX/CN=app.protocolx.test
+New, TLSv1/SSLv3, Cipher is AEAD-CHACHA20-POLY1305-SHA256
+    Protocol  : TLSv1.3
+    Cipher    : AEAD-CHACHA20-POLY1305-SHA256
+    Verify return code: 0 (ok)
+--- 3. HTTPS + SNI Round-Robin Load Balancing (4 requests) ---
+Request 1:
+HTTP/1.1 200 OK
+X-Backend: B
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Standby-Edge-Mac4
+Request 2:
+HTTP/1.1 200 OK
+X-Backend: B
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Standby-Edge-Mac4
+Request 3:
+HTTP/1.1 200 OK
+X-Backend: B
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Standby-Edge-Mac4
+Request 4:
+HTTP/1.1 200 OK
+X-Backend: B
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Standby-Edge-Mac4
+--- 4. Passive Failover Test via Standby Edge (Stop Backend A on Mac 3) ---
+Failover Request 1 (Backend A stopped):
+HTTP/1.1 200 OK
+X-Backend: B
+X-Gateway: ProtocolX-Standby-Edge-Mac4
+Failover Request 2 (Backend A stopped):
+HTTP/1.1 200 OK
+X-Backend: B
+X-Gateway: ProtocolX-Standby-Edge-Mac4
+Failover Request 3 (Backend A stopped):
+HTTP/1.1 200 OK
+X-Backend: B
+X-Gateway: ProtocolX-Standby-Edge-Mac4
+--- 5. Recovery Test (Restart Backend A on Mac 3, wait fail_timeout=10s) ---
+Recovery Request 1:
+HTTP/1.1 200 OK
+X-Backend: B
+Recovery Request 2:
+HTTP/1.1 200 OK
+X-Backend: B
+Recovery Request 3:
+HTTP/1.1 200 OK
+X-Backend: B
+Recovery Request 4:
+HTTP/1.1 200 OK
+X-Backend: B
+--- 6. Cleanup: Stop Standby Nginx on Mac 4 ---
+--- 7. DNS Cutover Status ---
+BLOCKED: Live DNS cutover of app.protocolx.test on port 53 requires sudo on Mac 1.

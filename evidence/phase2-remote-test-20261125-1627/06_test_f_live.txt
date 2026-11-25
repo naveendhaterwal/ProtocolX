@@ -1,0 +1,65 @@
+=== Test F (Live): 4-Layer Troubleshooting ===
+--- Layer 1 (DNS): dig app.protocolx.test ---
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 app.protocolx.test
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 30295
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;app.protocolx.test.		IN	A
+
+;; ANSWER SECTION:
+app.protocolx.test.	30	IN	A	10.7.10.188
+
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1#53(127.0.0.1)
+;; WHEN: Wed Nov 25 16:34:48 IST 2026
+;; MSG SIZE  rcvd: 63
+
+--- Layer 2 (TCP): nc -vz 10.7.10.188 443 ---
+Connection to 10.7.10.188 port 443 [tcp/https] succeeded!
+--- Layer 3 (TLS): openssl s_client ---
+depth=0 C = IN, ST = State, L = City, O = ProtocolX, CN = app.protocolx.test
+depth=0 C = IN, ST = State, L = City, O = ProtocolX, CN = app.protocolx.test
+CONNECTED(00000003)
+ 0 s:/C=IN/ST=State/L=City/O=ProtocolX/CN=app.protocolx.test
+   i:/C=IN/ST=State/L=City/O=ProtocolX/CN=app.protocolx.test
+subject=/C=IN/ST=State/L=City/O=ProtocolX/CN=app.protocolx.test
+issuer=/C=IN/ST=State/L=City/O=ProtocolX/CN=app.protocolx.test
+New, TLSv1/SSLv3, Cipher is AEAD-CHACHA20-POLY1305-SHA256
+    Protocol  : TLSv1.3
+    Cipher    : AEAD-CHACHA20-POLY1305-SHA256
+    Verify return code: 18 (self signed certificate)
+--- Layer 4 (HTTPS without -k): curl -i https://app.protocolx.test/api/status ---
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+curl: (60) SSL certificate problem: self signed certificate
+More details here: https://curl.se/docs/sslcerts.html
+
+curl failed to verify the legitimacy of the server and therefore could not
+establish a secure connection to it. To learn more about this situation and
+how to fix it, please visit the web page mentioned above.
+--- Layer 4 (HTTPS with --cacert tls/app.protocolx.test.crt): ---
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    74    0    74    0     0    845      0 --:--:-- --:--:-- --:--:--   840100    74    0    74    0     0    843      0 --:--:-- --:--:-- --:--:--   840
+HTTP/1.1 200 OK
+Server: nginx/1.31.10
+Date: Wed, 25 Nov 2026 11:05:19 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+X-Backend: A
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Mac2-Edge
+
+{
+  "status": "OK",
+  "backend": "Backend A",
+  "uptime": 419.428195708
+}

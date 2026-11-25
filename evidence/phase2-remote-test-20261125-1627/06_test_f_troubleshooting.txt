@@ -1,0 +1,63 @@
+=== Test F: Layer-Based Troubleshooting (1. DNS -> 2. TCP -> 3. TLS -> 4. Application) ===
+--- Layer 1 (DNS): dig app.protocolx.test ---
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 app.protocolx.test
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 34353
+;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;app.protocolx.test.		IN	A
+
+;; AUTHORITY SECTION:
+.			86400	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2026112500 1800 900 604800 86400
+
+;; Query time: 23 msec
+;; SERVER: 1.1.1.1#53(1.1.1.1)
+;; WHEN: Wed Nov 25 16:27:29 IST 2026
+;; MSG SIZE  rcvd: 122
+
+--- Layer 2 (TCP): nc -vz 10.7.10.188 443 ---
+nc: connectx to 10.7.10.188 port 443 (tcp) failed: Connection refused
+--- Layer 3 (TLS): openssl s_client -connect 10.7.10.188:443 -servername app.protocolx.test ---
+connect: Connection refused
+connect:errno=61
+--- Layer 4 (Application via Domain): curl -v https://app.protocolx.test ---
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:02 --:--:--     0* Resolving timed out after 3005 milliseconds
+  0     0    0     0    0     0      0      0 --:--:--  0:00:03 --:--:--     0
+* Closing connection
+curl: (28) Resolving timed out after 3005 milliseconds
+--- Layer 4 (Direct Backend Health Endpoints) ---
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    53    0    53    0     0   1123      0 --:--:-- --:--:-- --:--:--  1127
+HTTP/1.1 404 Not Found
+X-Backend: A
+Content-Type: application/json
+Date: Wed, 25 Nov 2026 10:57:38 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{
+  "error": "Not Found",
+  "backend": "Backend A"
+}
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    26    0    26    0     0    788      0 --:--:-- --:--:-- --:--:--   812
+HTTP/1.1 404 Not Found
+X-Backend: B
+Content-Type: text/plain; charset=utf-8
+Date: Wed, 25 Nov 2026 10:57:38 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+404 Not Found (Backend B)

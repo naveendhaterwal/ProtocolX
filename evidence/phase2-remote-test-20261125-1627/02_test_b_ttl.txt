@@ -1,0 +1,33 @@
+=== Test B: DNS TTL Experiment Inspection ===
+listen-address=127.0.0.1,10.7.11.221
+local-ttl=30
+address=/app.protocolx.test/10.7.10.188
+host-record=migration.protocolx.test,10.7.10.188,30
+--- scripts/dns_ttl_experiment.sh header ---
+#!/bin/bash
+set -e
+
+# ProtocolX - Task 4: DNS TTL Experiment Script
+# Demonstrates 30-second TTL caching, record updates, cache expiration, and manual cache flushing.
+
+RECORD="ttl-test.protocolx.test"
+IP1="10.7.11.100"
+IP2="10.7.11.200"
+DNS_SERVER="127.0.0.1"
+TTL="30"
+
+echo "============================================================"
+echo "ProtocolX - Phase 2: Task 4 DNS TTL Experiment"
+echo "Record: $RECORD | Configured TTL: ${TTL}s"
+echo "============================================================"
+
+# Step 1: Add initial record with 30s TTL to dnsmasq
+echo ""
+echo "[Step 1] Configuring initial record: $RECORD -> $IP1 with TTL $TTL..."
+sudo sed -i '' "/$RECORD/d" /opt/homebrew/etc/dnsmasq.conf || true
+echo "address=/$RECORD/$IP1" | sudo tee -a /opt/homebrew/etc/dnsmasq.conf > /dev/null
+sudo killall -HUP dnsmasq || true
+sudo dscacheutil -flushcache
+sudo killall -HUP mDNSResponder || true
+--- Live execution status ---
+BLOCKED: Live TTL experiment requires sudo (dnsmasq on :53 + dscacheutil -flushcache).
