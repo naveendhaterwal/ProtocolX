@@ -1,0 +1,73 @@
+=== Test A: Primary & Backup DNS Inspection ===
+--- Mac 1 dns/dnsmasq.conf ---
+# dnsmasq configuration for Team ProtocolX - Phase 3 Private DNS
+
+# Port to listen on (standard DNS port)
+port=53
+
+# Interfaces and addresses to bind
+listen-address=127.0.0.1,10.7.11.221
+bind-interfaces
+
+# Do not forward plain names without a dot or domain part
+domain-needed
+
+# Do not forward addresses in the non-routed address spaces
+bogus-priv
+
+# Do not read /etc/resolv.conf to prevent lookup loops
+no-resolv
+
+# Upstream public DNS forwarders for general internet access
+server=1.1.1.1
+server=8.8.8.8
+
+# Default TTL for local responses
+local-ttl=30
+
+# Private DNS mapping for ProtocolX Phase 2
+# app.protocolx.test -> Shagun's Mac 2 (Nginx Edge / Load Balancer)
+address=/app.protocolx.test/10.7.10.188
+
+# DNS TTL and controlled migration record (Requirement B: ~30s TTL)
+host-record=migration.protocolx.test,10.7.10.188,30
+--- Mac 4 dns/dnsmasq_backup.conf ---
+# dnsmasq configuration for ProtocolX Phase 2 — Backup DNS Server (Mac 4 / Aditya)
+
+port=53
+listen-address=127.0.0.1,10.7.18.164
+bind-interfaces
+
+domain-needed
+bogus-priv
+no-resolv
+
+server=1.1.1.1
+server=8.8.8.8
+
+local-ttl=30
+
+# Identical private mapping as Primary DNS
+address=/app.protocolx.test/10.7.10.188
+host-record=migration.protocolx.test,10.7.10.188,30
+--- Mac 1 /etc/resolver/test ---
+nameserver 127.0.0.1
+nameserver 10.7.7.218
+port 53
+--- dig @127.0.0.1 app.protocolx.test ---
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @127.0.0.1 app.protocolx.test
+; (1 server found)
+;; global options: +cmd
+;; connection timed out; no servers could be reached
+--- dig @10.7.18.164 app.protocolx.test ---
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @10.7.18.164 app.protocolx.test
+; (1 server found)
+;; global options: +cmd
+;; connection timed out; no servers could be reached
+--- sudo -n check for port 53 ---
+sudo: a password is required
+Mac 1 BLOCKED: sudo password required to bind port 53
+sudo: a password is required
+Mac 4 BLOCKED: sudo password required to bind port 53

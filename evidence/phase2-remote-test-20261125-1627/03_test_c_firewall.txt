@@ -1,0 +1,56 @@
+=== Test C: PF Firewall Inspection & Syntax Validation ===
+--- Mac 3 pf_backend_a.conf ---
+# Packet Filter (PF) Rule — Backend A Isolation (Mac 3)
+# Allows traffic to port 3001 ONLY from Mac 2 (Nginx Edge: 10.7.10.188).
+# SSH (port 22) and loopback (lo0, used by local monitoring agent) are preserved.
+# Note: Specific 'pass in quick' rules MUST precede catch-all 'block in quick' in PF.
+
+set skip on lo0
+
+# Ensure SSH administrative access is never dropped
+pass in proto tcp to any port 22
+
+# Whitelist ONLY Nginx Edge Gateway (Mac 2: Shagun)
+pass in quick inet proto tcp from 10.7.10.188 to any port 3001
+
+# Isolate port 3001: block all other incoming connections
+block in quick proto tcp to any port 3001
+--- Mac 3 pfctl -vnf ---
+pfctl: Use of -f option, could result in flushing of rules
+present in the main ruleset added by the system at startup.
+See /etc/pf.conf for further details.
+
+set skip on { lo0 }
+pass in proto tcp from any to any port = 22 flags S/SA keep state
+pass in quick inet proto tcp from 10.7.10.188 to any port = 3001 flags S/SA keep state
+block drop in quick proto tcp from any to any port = 3001
+--- Mac 4 pf_backend_b.conf ---
+# Packet Filter (PF) Rule — Backend B Isolation (Mac 4)
+# Allows traffic to port 3002 ONLY from Mac 2 (Nginx Edge: 10.7.10.188).
+# SSH (port 22) and loopback (lo0, used by local monitoring agent) are preserved.
+# Note: Specific 'pass in quick' rules MUST precede catch-all 'block in quick' in PF.
+
+set skip on lo0
+
+# Ensure SSH administrative access is never dropped
+pass in proto tcp to any port 22
+
+# Whitelist ONLY Nginx Edge Gateway (Mac 2: Shagun)
+pass in quick inet proto tcp from 10.7.10.188 to any port 3002
+
+# Isolate port 3002: block all other incoming connections
+block in quick proto tcp to any port 3002
+--- Mac 4 pfctl -vnf ---
+pfctl: Use of -f option, could result in flushing of rules
+present in the main ruleset added by the system at startup.
+See /etc/pf.conf for further details.
+
+set skip on { lo0 }
+pass in proto tcp from any to any port = 22 flags S/SA keep state
+pass in quick inet proto tcp from 10.7.10.188 to any port = 3002 flags S/SA keep state
+block drop in quick proto tcp from any to any port = 3002
+--- sudo -n check for pfctl ---
+sudo: a password is required
+Mac 3 BLOCKED: sudo password required for pfctl
+sudo: a password is required
+Mac 4 BLOCKED: sudo password required for pfctl

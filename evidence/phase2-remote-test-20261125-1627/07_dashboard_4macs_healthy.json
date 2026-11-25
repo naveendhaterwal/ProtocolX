@@ -1,0 +1,44 @@
+[
+  {
+    "id": "mac1",
+    "name": "Mac 1 (Naveen)",
+    "ip": "10.7.11.221",
+    "isOnline": true,
+    "health": "HEALTHY",
+    "services": [
+      "Primary DNS (dnsmasq):HEALTHY"
+    ]
+  },
+  {
+    "id": "mac2",
+    "name": "Mac 2 (Shagun)",
+    "ip": "10.7.10.188",
+    "isOnline": true,
+    "health": "HEALTHY",
+    "services": [
+      "Nginx HTTP Gateway:HEALTHY",
+      "Nginx HTTPS Termination:HEALTHY"
+    ]
+  },
+  {
+    "id": "mac3",
+    "name": "Mac 3 (Archit)",
+    "ip": "10.7.6.165",
+    "isOnline": true,
+    "health": "HEALTHY",
+    "services": [
+      "Backend A Microservice:HEALTHY"
+    ]
+  },
+  {
+    "id": "mac4",
+    "name": "Mac 4 (Aditya)",
+    "ip": "10.7.18.164",
+    "isOnline": true,
+    "health": "HEALTHY",
+    "services": [
+      "Backend B Microservice:HEALTHY",
+      "Backup DNS Server:HEALTHY"
+    ]
+  }
+]

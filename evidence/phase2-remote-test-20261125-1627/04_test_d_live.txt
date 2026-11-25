@@ -1,0 +1,62 @@
+=== Test D (Live): Primary Edge Load Balancing & Failover (Mac 2) ===
+--- 1. 6-Request Round-Robin Load Balancing ---
+Req 1:
+HTTP/1.1 200 OK
+X-Backend: B
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Mac2-Edge
+Req 2:
+HTTP/1.1 200 OK
+X-Backend: A
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Mac2-Edge
+Req 3:
+HTTP/1.1 200 OK
+X-Backend: B
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Mac2-Edge
+Req 4:
+HTTP/1.1 200 OK
+X-Backend: A
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Mac2-Edge
+Req 5:
+HTTP/1.1 200 OK
+X-Backend: B
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Mac2-Edge
+Req 6:
+HTTP/1.1 200 OK
+X-Backend: A
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Mac2-Edge
+--- 2. Stop Backend A on Mac 3 and verify Failover to Backend B ---
+Failover Req 1 (Backend A stopped):
+HTTP/1.1 200 OK
+X-Backend: B
+X-Gateway: ProtocolX-Mac2-Edge
+Failover Req 2 (Backend A stopped):
+HTTP/1.1 200 OK
+X-Backend: B
+X-Gateway: ProtocolX-Mac2-Edge
+Failover Req 3 (Backend A stopped):
+HTTP/1.1 200 OK
+X-Backend: B
+X-Gateway: ProtocolX-Mac2-Edge
+Failover Req 4 (Backend A stopped):
+HTTP/1.1 200 OK
+X-Backend: B
+X-Gateway: ProtocolX-Mac2-Edge
+--- 3. Restart Backend A on Mac 3, wait fail_timeout=10s, verify Recovery ---
+Recovery Req 1:
+HTTP/1.1 200 OK
+X-Backend: B
+Recovery Req 2:
+HTTP/1.1 200 OK
+X-Backend: A
+Recovery Req 3:
+HTTP/1.1 200 OK
+X-Backend: B
+Recovery Req 4:
+HTTP/1.1 200 OK
+X-Backend: A

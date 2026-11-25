@@ -22,10 +22,11 @@ killall dnsmasq 2>/dev/null || true
 /opt/homebrew/opt/dnsmasq/sbin/dnsmasq -C /opt/homebrew/etc/dnsmasq.conf
 
 # Setup macOS scoped resolver for .test domain
+CURRENT_IP=$(ipconfig getifaddr en0 2>/dev/null || echo "10.7.11.221")
 mkdir -p /etc/resolver
-cat << 'EOF' > /etc/resolver/test
+cat << EOF > /etc/resolver/test
 nameserver 127.0.0.1
-nameserver 10.7.7.218
+nameserver $CURRENT_IP
 port 53
 EOF
 

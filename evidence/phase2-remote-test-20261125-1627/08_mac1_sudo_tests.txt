@@ -1,0 +1,66 @@
+=== 1. Test A: Stop Primary DNS & Verify Backup DNS ===
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @127.0.0.1 app.protocolx.test
+; (1 server found)
+;; global options: +cmd
+;; connection timed out; no servers could be reached
+
+; <<>> DiG 9.10.6 <<>> +time=3 +tries=2 @10.7.18.164 app.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+app.protocolx.test.	30	IN	A	10.7.10.188
+Deploying dnsmasq configuration from repository...
+dnsmasq started and macOS .test resolver configured successfully.
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @127.0.0.1 app.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+app.protocolx.test.	30	IN	A	10.7.10.188
+=== 2. Trust Cert in System Keychain & Verify HTTPS without -k ===
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    60    0    60    0     0    130      0 --:--:-- --:--:-- --:--:--   130100    60    0    60    0     0    130      0 --:--:-- --:--:-- --:--:--   130
+HTTP/1.1 200 OK
+Server: nginx/1.31.10
+Date: Wed, 25 Nov 2026 11:21:16 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+X-Backend: B
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Mac2-Edge
+
+{"backend":"B","status":"ok","host":"vk.local","port":3002}
+=== 3. Test B: 30s DNS TTL Experiment ===
+============================================================
+ProtocolX - Phase 2: Task 4 DNS TTL Experiment
+Record: ttl-test.protocolx.test | Configured TTL: 30s
+============================================================
+
+[Step 1] Configuring initial record: ttl-test.protocolx.test -> 10.7.11.100 with TTL 30...
+
+[Step 2] Initial DNS Query (Baseline Answer):
+
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 ttl-test.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+
+[Step 3] Updating DNS server backend record to: ttl-test.protocolx.test -> 10.7.11.200...
+
+[Step 4] Querying immediately (within TTL window):
+Expected behavior: Cached answer (10.7.11.100) is returned due to active TTL.
+
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 ttl-test.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+
+[Step 5] Demonstrating client cache flush:
+Cache flushed. Querying again:
+
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 ttl-test.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+
+============================================================
+DNS TTL Experiment Completed Successfully.
+============================================================
