@@ -1121,39 +1121,34 @@ Req 1..6 → <span class="c-teal">HTTP/1.1 200 OK · X-Backend: B, A, B, A, B, A
           </thead>
           <tbody>
             <tr>
-              <td><strong>1. Macs sleeping on battery</strong></td>
-              <td>macOS powered down Wi-Fi after ~30s of inactivity, dropping Edge and backends.</td>
-              <td>Ran <code class="inline">caffeinate -d -i -m -u &amp;</code> on Mac 2, Mac 3, and Mac 4.</td>
+              <td><strong>1. DHCP IP drift on campus Wi-Fi</strong></td>
+              <td>Phase 1 hardcoded IPs changed on reconnect; <code class="inline">/etc/resolver/test</code> and <code class="inline">nginx.conf</code> pointed to old hosts.</td>
+              <td>Verified live <code class="inline">en0</code> IPs on all 4 Macs and updated DNS/Nginx configs before testing.</td>
             </tr>
             <tr>
-              <td><strong>2. DHCP IP drift across campus LAN</strong></td>
-              <td>Phase 1 IPs changed; <code class="inline">/etc/resolver/test</code> and <code class="inline">nginx.conf</code> were stale.</td>
-              <td>Recorded live <code class="inline">en0</code> IPs and updated DNS/Nginx configs dynamically.</td>
+              <td><strong>2. Laptops sleeping mid-demo</strong></td>
+              <td>macOS powered down Wi-Fi on battery after ~30s idle, causing Edge and backend timeouts.</td>
+              <td>Kept laptops awake with <code class="inline">caffeinate</code> and power adapters during evaluation.</td>
             </tr>
             <tr>
-              <td><strong>3. TLS key/cert mismatch on Mac 2</strong></td>
-              <td>Mac 2's local <code class="inline">.key</code> did not match the repo <code class="inline">.crt</code> (<code class="inline">error:05800074</code>).</td>
-              <td>Regenerated <code class="inline">.crt</code> from Mac 2's key and trusted it in Mac 1 Keychain.</td>
+              <td><strong>3. TLS cert mismatch &amp; trust error</strong></td>
+              <td><code class="inline">curl</code> failed with self-signed error (<code class="inline">exit 60</code>) and Mac 2's <code class="inline">.crt</code>/<code class="inline">.key</code> mismatched.</td>
+              <td>Regenerated cert with SAN <code class="inline">app.protocolx.test</code> and added it to Mac 1 System Keychain.</td>
             </tr>
             <tr>
-              <td><strong>4. Script binary path bug</strong></td>
-              <td><code class="inline">which ... &amp;&amp; echo ...</code> duplicated the binary path across two lines.</td>
-              <td>Replaced with clean <code class="inline">command -v</code> / <code class="inline">if-elif</code> checks in starter scripts.</td>
+              <td><strong>4. DNS caching vs authoritative reload</strong></td>
+              <td><code class="inline">SIGHUP</code> didn't reload <code class="inline">dnsmasq.conf</code>, and macOS kept old cached IPs during the 30s TTL.</td>
+              <td>Restarted <code class="inline">dnsmasq</code> on changes and verified both <code class="inline">dig</code> and <code class="inline">dscacheutil -flushcache</code>.</td>
             </tr>
             <tr>
-              <td><strong>5. TTL script not reloading config</strong></td>
-              <td><code class="inline">killall -HUP dnsmasq</code> does not reload <code class="inline">dnsmasq.conf</code>; <code class="inline">dig</code> skips OS cache.</td>
-              <td>Restarted <code class="inline">dnsmasq</code> and queried both <code class="inline">dig</code> and <code class="inline">dscacheutil -q host</code>.</td>
+              <td><strong>5. PF rule order &amp; rollback syntax</strong></td>
+              <td><code class="inline">block in quick</code> before <code class="inline">pass</code> blocked Edge; unordered backup anchors failed <code class="inline">pfctl -f</code>.</td>
+              <td>Placed <code class="inline">pass in quick</code> first, kept SSH (<code class="inline">:22</code>) open, and ordered <code class="inline">scrub → nat → filter</code>.</td>
             </tr>
             <tr>
-              <td><strong>6. PF rule &amp; rollback section order</strong></td>
-              <td><code class="inline">block in quick</code> preceded <code class="inline">pass</code>; saving <code class="inline">-sn</code> before <code class="inline">-sr</code> broke <code class="inline">pfctl -f</code>.</td>
-              <td>Fixed rule order and enforced <code class="inline">scrub → nat/rdr → filter</code> in rollback.</td>
-            </tr>
-            <tr>
-              <td><strong>7. Dashboard auth &amp; agent errors</strong></td>
-              <td>Plaintext passcode lacked CSRF/replay; background <code class="inline">fetch</code> hit <code class="inline">EHOSTUNREACH</code>.</td>
-              <td>Added <code class="inline">scrypt</code> hashes, <code class="inline">HttpOnly</code> sessions, CSRF/nonces, and Socket.IO reporting.</td>
+              <td><strong>6. Standby Edge blocked by PF (<code class="inline">504</code>)</strong></td>
+              <td>During cutover to Mac 4 (<code class="inline">:8443</code>), active PF rules only allowed Mac 2 (<code class="inline">10.7.10.188</code>).</td>
+              <td>Diagnosed via Nginx logs, rolled back PF, and noted Standby IP must be whitelisted.</td>
             </tr>
           </tbody>
         </table>
