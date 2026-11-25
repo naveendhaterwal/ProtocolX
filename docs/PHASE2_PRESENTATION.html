@@ -394,7 +394,7 @@
       text-align: center;
     }
 
-    /* Lightbox */
+    /* Lightbox & Proof Modal */
     .lightbox {
       position: fixed;
       inset: 0;
@@ -412,6 +412,47 @@
       border-radius: 10px;
       border: 1px solid #444;
     }
+    .proof-card {
+      width: min(860px, 94vw);
+      max-height: 84vh;
+      background: var(--surface-dark);
+      color: var(--on-dark);
+      border: 1px solid #3c3832;
+      border-radius: 12px;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .proof-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .proof-pre {
+      background: var(--surface-dark-soft);
+      border: 1px solid var(--surface-dark-elevated);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      color: #e6dfd8;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+    .btn-proof {
+      background: var(--surface-dark-elevated);
+      color: var(--accent-teal);
+      border: 1px solid #3c3832;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-proof:hover { border-color: var(--accent-teal); }
 
     /* Tables */
     table.clean-table {
@@ -558,6 +599,16 @@
 
   <div class="lightbox" id="lightbox" onclick="closeLightbox()">
     <img id="lightbox-img" src="" alt="Evidence Screenshot" />
+  </div>
+
+  <div class="lightbox" id="proof-modal" onclick="if(event.target===this) closeProof()">
+    <div class="proof-card">
+      <div class="proof-header">
+        <span id="proof-title" style="font-weight:600; font-size:15px;">Live Terminal Proof</span>
+        <button class="btn-secondary-sm" onclick="closeProof()">Close (Esc)</button>
+      </div>
+      <pre class="proof-pre" id="proof-body"></pre>
+    </div>
   </div>
 
   <main class="deck" id="deck">
@@ -840,7 +891,7 @@ dscacheutil -q host -a name migration.protocolx.test
 
       <div class="slide-footer">
         <span>Slide 4 · Tests A &amp; B (Interactive Diagram)</span>
-        <span>Evidence: 01_test_a_dns_live.txt, 02_test_b_ttl_live.txt</span>
+        <button class="btn-proof" onclick="openProof('dns')">View Live Terminal Proof (Tests A &amp; B)</button>
       </div>
     </section>
 
@@ -903,7 +954,7 @@ dscacheutil -q host -a name migration.protocolx.test
 
       <div class="slide-footer">
         <span>Slide 5 · Test C</span>
-        <span>Evidence: 03_test_c_live.txt, 03_test_c_rollback_live.txt</span>
+        <button class="btn-proof" onclick="openProof('pf')">View Live Terminal Proof (PF Isolation &amp; Rollback)</button>
       </div>
     </section>
 
@@ -951,7 +1002,7 @@ Req 1..6 → <span class="c-teal">HTTP/1.1 200 OK · X-Backend: B, A, B, A, B, A
 
       <div class="slide-footer">
         <span>Slide 6 · Test D (Click steps 1–3 to inspect live failover trace)</span>
-        <span>Evidence: 04_test_d_live.txt</span>
+        <button class="btn-proof" onclick="openProof('ha')">View Live Terminal Proof (Round-Robin &amp; Failover)</button>
       </div>
     </section>
 
@@ -1007,7 +1058,7 @@ Req 1..6 → <span class="c-teal">HTTP/1.1 200 OK · X-Backend: B, A, B, A, B, A
 
       <div class="slide-footer">
         <span>Slide 7 · Test E</span>
-        <span>Evidence: 05_test_e_standby_edge.txt, 05_test_e_cutover_live.txt</span>
+        <button class="btn-proof" onclick="openProof('edge')">View Live Terminal Proof (Standby Edge &amp; Cutover)</button>
       </div>
     </section>
 
@@ -1052,7 +1103,7 @@ Req 1..6 → <span class="c-teal">HTTP/1.1 200 OK · X-Backend: B, A, B, A, B, A
 
       <div class="slide-footer">
         <span>Slide 8 · Test F</span>
-        <span>Evidence: 06_test_f_live.txt, 08_mac1_sudo_tests.txt</span>
+        <button class="btn-proof" onclick="openProof('layers')">View Live Terminal Proof (4-Layer Diagnostics)</button>
       </div>
     </section>
 
@@ -1156,7 +1207,7 @@ Req 1..6 → <span class="c-teal">HTTP/1.1 200 OK · X-Backend: B, A, B, A, B, A
 
       <div class="slide-footer">
         <span>Slide 10 · Final Summary</span>
-        <span>Dashboard: http://localhost:4000 · Branch: phase2-integration</span>
+        <button class="btn-proof" onclick="openProof('dash')">View Live 4-Mac Dashboard JSON Proof</button>
       </div>
     </section>
 
@@ -1198,6 +1249,163 @@ Req 1..6 → <span class="c-teal">HTTP/1.1 200 OK · X-Backend: B, A, B, A, B, A
     }
     function closeLightbox() {
       document.getElementById('lightbox').classList.remove('open');
+    }
+
+    const PROOFS = {
+      dns: {
+        title: 'Tests A & B — Live Backup DNS & 30s TTL Terminal Proof',
+        body: `=== Test A: Stop Primary DNS & Verify Backup DNS ===
+$ sudo killall dnsmasq
+$ dig +time=2 +tries=1 @127.0.0.1 app.protocolx.test
+;; connection timed out; no servers could be reached
+
+$ dig +time=3 +tries=2 @10.7.18.164 app.protocolx.test +noall +answer
+app.protocolx.test.     30      IN       A       10.7.10.188
+
+$ sudo ./scripts/start_dns.sh
+dnsmasq started and macOS .test resolver configured successfully.
+
+=== Test B: 30s DNS TTL Experiment (migration.protocolx.test) ===
+[Step 2] Baseline:
+migration.protocolx.test. 30    IN       A       10.7.10.188
+ip_address: 10.7.10.188
+
+[Step 3] Authoritative update (-> 10.7.18.164):
+migration.protocolx.test. 30    IN       A       10.7.18.164
+
+[Step 4] System resolver within 30s TTL (cached):
+ip_address: 10.7.10.188
+
+[Step 5] After sudo dscacheutil -flushcache:
+ip_address: 10.7.18.164`
+      },
+      pf: {
+        title: 'Test C — Live PF Isolation & Rollback Terminal Proof',
+        body: `=== PF Active (Mac 3 :3001 & Mac 4 :3002) ===
+Mac 2 (10.7.10.188) -> Mac 3:3001:
+HTTP/1.1 200 OK | X-Backend: A
+
+Mac 2 (10.7.10.188) -> Mac 4:3002:
+HTTP/1.1 200 OK | X-Backend: B
+
+Mac 1 (10.7.11.221) -> Mac 3:3001:
+BLOCKED_AS_EXPECTED (exit 28)
+
+Mac 1 (10.7.11.221) -> Mac 4:3002:
+BLOCKED_AS_EXPECTED (exit 28)
+
+End-to-End HTTPS via Mac 2 Edge while PF active:
+HTTP/1.1 200 OK | X-Backend: A | Cache-Control: public, max-age=10
+
+=== PF Rollback Verified (Mac 3 & Mac 4) ===
+$ sudo ./scripts/rollback_firewall.sh
+[1/3] Previous PF status: disabled
+[2/3] Restoring saved PF ruleset from /var/tmp/protocolx_pf_backup/pf_rules.bak...
+[3/3] Restoring PF enabled/disabled state (disabled)...
+SUCCESS: PF ruleset restored and PF returned to its original DISABLED state.
+
+Mac 1 -> Mac 3:3001: HTTP/1.1 200 OK (X-Backend: A)
+Mac 1 -> Mac 4:3002: HTTP/1.1 200 OK (X-Backend: B)`
+      },
+      ha: {
+        title: 'Test D — Live Round-Robin, Failover & Recovery Terminal Proof',
+        body: `=== 1. 6-Request Round-Robin Load Balancing ===
+Req 1: HTTP/1.1 200 OK | X-Backend: B | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 2: HTTP/1.1 200 OK | X-Backend: A | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 3: HTTP/1.1 200 OK | X-Backend: B | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 4: HTTP/1.1 200 OK | X-Backend: A | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 5: HTTP/1.1 200 OK | X-Backend: B | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 6: HTTP/1.1 200 OK | X-Backend: A | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+
+=== 2. Stop Backend A on Mac 3 ===
+Failover Req 1: HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge
+Failover Req 2: HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge
+Failover Req 3: HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge
+Failover Req 4: HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge
+
+=== 3. Restart Backend A + Wait fail_timeout=10s ===
+Recovery Req 1: HTTP/1.1 200 OK | X-Backend: B
+Recovery Req 2: HTTP/1.1 200 OK | X-Backend: A
+Recovery Req 3: HTTP/1.1 200 OK | X-Backend: B
+Recovery Req 4: HTTP/1.1 200 OK | X-Backend: A`
+      },
+      edge: {
+        title: 'Test E — Standby Edge (:8443) & Live DNS Cutover Proof',
+        body: `=== 1. Standby Edge TLSv1.3 & HTTPS (Mac 4 :8443) ===
+$ openssl s_client -connect 10.7.18.164:8443 -servername app.protocolx.test
+Protocol  : TLSv1.3
+Cipher    : AEAD-CHACHA20-POLY1305-SHA256
+Verify return code: 0 (ok)
+HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Standby-Edge-Mac4
+
+=== 2. Live DNS Cutover & Restore (Mac 1) ===
+Before cutover: app.protocolx.test. 30 IN A 10.7.10.188
+Cutover -> 10.7.18.164:
+  dig @127.0.0.1: app.protocolx.test. 30 IN A 10.7.18.164
+  dscacheutil (cached before flush): ip_address: 10.7.10.188
+  dscacheutil (after flush):         ip_address: 10.7.18.164
+Restore -> 10.7.10.188:
+  HTTP/1.1 200 OK | Server: nginx/1.31.10 | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge`
+      },
+      layers: {
+        title: 'Test F — 4-Layer Troubleshooting Sequence Live Output',
+        body: `--- Layer 1 (DNS) ---
+$ dig +time=2 +tries=1 app.protocolx.test
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR
+app.protocolx.test. 30 IN A 10.7.10.188
+;; Query time: 0 msec | SERVER: 127.0.0.1#53
+
+--- Layer 2 (TCP) ---
+$ nc -vz -w 3 10.7.10.188 443
+Connection to 10.7.10.188 port 443 [tcp/https] succeeded!
+
+--- Layer 3 (TLS) ---
+$ openssl s_client -connect 10.7.10.188:443 -servername app.protocolx.test
+Protocol  : TLSv1.3
+Cipher    : AEAD-CHACHA20-POLY1305-SHA256
+
+--- Layer 4 (Application, trusted cert without -k) ---
+$ curl -i --max-time 5 https://app.protocolx.test/api/status
+HTTP/1.1 200 OK
+X-Backend: B | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+{"backend":"B","status":"ok","host":"vk.local","port":3002}`
+      },
+      dash: {
+        title: 'Central Dashboard — Live 4-Mac Health JSON (07_dashboard_4macs_healthy.json)',
+        body: `[
+  {
+    "id": "mac1", "name": "Mac 1 (Naveen)", "ip": "10.7.11.221",
+    "isOnline": true, "health": "HEALTHY",
+    "services": ["Primary DNS (dnsmasq):HEALTHY"]
+  },
+  {
+    "id": "mac2", "name": "Mac 2 (Shagun)", "ip": "10.7.10.188",
+    "isOnline": true, "health": "HEALTHY",
+    "services": ["Nginx HTTP Gateway:HEALTHY", "Nginx HTTPS Termination:HEALTHY"]
+  },
+  {
+    "id": "mac3", "name": "Mac 3 (Archit)", "ip": "10.7.6.165",
+    "isOnline": true, "health": "HEALTHY",
+    "services": ["Backend A Microservice:HEALTHY"]
+  },
+  {
+    "id": "mac4", "name": "Mac 4 (Aditya)", "ip": "10.7.18.164",
+    "isOnline": true, "health": "HEALTHY",
+    "services": ["Backend B Microservice:HEALTHY", "Backup DNS Server:HEALTHY"]
+  }
+]`
+      }
+    };
+
+    function openProof(key) {
+      const p = PROOFS[key];
+      if (!p) return;
+      document.getElementById('proof-title').textContent = p.title;
+      document.getElementById('proof-body').textContent = p.body;
+      document.getElementById('proof-modal').classList.add('open');
+    }
+    function closeProof() {
+      document.getElementById('proof-modal').classList.remove('open');
     }
 
     // Slide 4 interactive DNS mode
@@ -1263,6 +1471,7 @@ Req 1..6 → <span class="c-teal">HTTP/1.1 200 OK · X-Backend: B, A, B, A, B, A
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeLightbox();
+        closeProof();
         document.body.classList.remove('overview');
         return;
       }
