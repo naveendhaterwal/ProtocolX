@@ -2,11 +2,13 @@
 
 ## Phase 2: Distributed Multi-Mac Orchestration & Control Center
 
-ProtocolX Phase 2 extends the platform into a multi-host distributed system spanning four physical Mac computers communicating across an active private campus LAN (`10.7.0.0/19`). 
+ProtocolX Phase 2 extends the platform into a multi-host distributed system spanning four physical Mac computers communicating across an active private campus LAN (`10.7.0.0/19`). Each team member configured, tested, and verified their assigned node, backed by a real-time React + Tailwind CSS dashboard, Socket.IO event streaming, and persistent SQLite monitoring.
 
-All remote operations are coordinated from **Mac 1 (Naveen)** using automated passwordless SSH, backed by a real-time React + Tailwind CSS dashboard, Socket.IO event streaming, and persistent SQLite monitoring.
-
-### Phase 2 Documentation Index
+### Phase 2 Documentation & Deliverables Index
+- [Phase 2 Final Team Verification Report (Markdown)](PHASE2_REMOTE_TEST_REPORT.md) — Live verification results for all 6 Phase 2 requirements (`A`–`F`) and problems solved.
+- [Phase 2 Final Report (LaTeX)](docs/PHASE2_FINAL_REPORT.tex) & [Compiled PDF](docs/PHASE2_FINAL_REPORT.pdf) — Print-ready evaluation report.
+- [Phase 2 Interactive Presentation (HTML)](docs/PHASE2_PRESENTATION.html) — 10-slide animated viva deck with live terminal proofs.
+- [Phase 2 Quick Command Reference (Start / Stop / Bypass)](docs/PHASE2_COMMANDS.md) — One-liner commands for each Mac.
 - [Phase 2 Hardware & Machine Inventory](docs/PHASE2_MACHINE_INVENTORY.md) — Live verified IPs, MAC addresses, hostnames, and roles.
 - [Phase 2 Distributed Architecture](docs/PHASE2_ARCHITECTURE.md) — Multi-tier topology, Mermaid flowcharts, and network matrix.
 - [Phase 2 Firewall & Service Isolation](docs/PHASE2_FIREWALL_EVALUATION.md) — macOS Packet Filter (`pfctl`) evaluation, rulesets, and verified rollback.
