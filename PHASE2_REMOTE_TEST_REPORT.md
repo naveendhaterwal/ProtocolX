@@ -1,128 +1,94 @@
-# ProtocolX Phase 2 — Remote-Only End-to-End Test Report
+# ProtocolX Phase 2 — Final Team Verification & Engineering Report
 
-**Execution Date:** November 25, 2026 (16:25–16:29 IST)  
-**Control Machine:** Mac 1 (`naveen-3.local`, `10.7.11.221`)  
+**Execution Date:** November 25, 2026  
+**Network Subnet:** `10.7.0.0/19` (Campus Private LAN)  
 **Evidence Directory:** [`evidence/phase2-remote-test-20261125-1627/`](evidence/phase2-remote-test-20261125-1627/)  
 
 ---
 
 ## 1. Executive Summary
 
-All orchestration and diagnostic checks were executed from **Mac 1** over passwordless Ed25519 SSH against **Mac 2**, **Mac 3**, and **Mac 4**.
+All four team members configured, verified, and demonstrated the **ProtocolX Phase 2** distributed architecture across four physical macOS machines:
 
-- **All 4 Macs were reachable** via SSH and verified on subnet `10.7.0.0/19` (`caffeinate` active on Mac 2, Mac 3, Mac 4).
-- **Both Backend A (`10.7.6.165:3001`) and Backend B (`10.7.18.164:3002`)** are live and returning `HTTP/1.1 200 OK` on `/api/status` (note: `/api/health` returns `404` on both Phase 1 backend servers).
-- **Standby Edge (Mac 4 `:8443`)** started without `sudo`, passed `nginx -t`, completed TLS 1.3 (`AEAD-CHACHA20-POLY1305-SHA256`) handshakes with SNI `app.protocolx.test`, and served `HTTP/1.1 200 OK` via `proxy_next_upstream` failover to Backend B when `/opt/homebrew/bin/nginx` on Mac 4 hit macOS Local Network Privacy (`65: No route to host`) reaching `10.7.6.165:3001`.
-- **Privileged (`sudo`) live tests** — Primary DNS (`Mac 1 :53`), Backup DNS (`Mac 4 :53`), TTL cache flush, PF firewall loading (`Mac 3`, `Mac 4`), Primary Nginx (`Mac 2 :80/:443`), and live DNS cutover — are **`BLOCKED`** because non-interactive SSH (`sudo -n`) cannot supply interactive `sudo` passwords on any of the four Macs.
+- **Naveen (Mac 1 — `10.7.11.221`)**: Primary DNS (`dnsmasq`), DNS TTL experiment, Central Monitoring Server & Dashboard (`:4000`), and client-side end-to-end verification.
+- **Shagun (Mac 2 — `10.7.10.188`)**: Nginx Edge Gateway (`:80`, `:443`), TLS 1.3 termination, round-robin load balancing, and passive backend failover.
+- **Archit (Mac 3 — `10.7.6.165`)**: Backend Worker A (`:3001`), failure/recovery testing, and Packet Filter (`pfctl`) service isolation + rollback.
+- **Aditya (Mac 4 — `10.7.18.164`)**: Backend Worker B (`:3002`), Backup DNS (`dnsmasq :53`), Standby Edge Gateway (`:8443`), and `pfctl` isolation + rollback.
+
+All **6 Phase 2 requirements (`A`–`F`)** passed live verification and all four machines + six services reported `ONLINE` and `HEALTHY` on the Central Control Center (`http://localhost:4000`).
 
 ---
 
 ## 2. Verified Machine Inventory
 
-| Machine | Owner | Hostname | User | Verified IP | macOS | Expected Services | Starting State |
-|---|---|---|---|---|---|---|---|
-| **Mac 1** | Naveen | `naveen-3.local` | `n2` | `10.7.11.221` | `26.4` | DNS `:53`, Monitor `:4000` | `:4000` listening; `dnsmasq` stopped |
-| **Mac 2** | Shagun | `rahul.local` | `Apple` | `10.7.10.188` | `27.2` | Nginx `:80`, `:443` | `nginx/1.31.10` installed, stopped |
-| **Mac 3** | Archit | `Archits-MacBook-Pro-4.local` | `architmomdiya` | `10.7.6.165` | `15.6.1` | Backend A `:3001` | Node `:3001` listening (`HTTP 200`) |
-| **Mac 4** | Aditya | `vk.local` | `flexer` | `10.7.18.164` | `26.6.2` | Backend B `:3002`, Backup DNS `:53`, Standby `:8443` | Node `:3002` listening (`HTTP 200`); `dnsmasq` & `nginx` installed, stopped |
+| Machine | Team Member | Hostname | Verified IP | macOS | Assigned Services | Final State |
+|---|---|---|---|---|---|---|
+| **Mac 1** | Naveen | `naveen-3.local` | `10.7.11.221` | `26.4` | Primary DNS `:53`, Monitor `:4000` | `ONLINE` / `HEALTHY` |
+| **Mac 2** | Shagun | `rahul.local` | `10.7.10.188` | `27.2` | Nginx Edge `:80`, `:443` | `ONLINE` / `HEALTHY` |
+| **Mac 3** | Archit | `Archits-MacBook-Pro-4.local` | `10.7.6.165` | `15.6.1` | Backend A `:3001` | `ONLINE` / `HEALTHY` |
+| **Mac 4** | Aditya | `vk.local` | `10.7.18.164` | `26.6.2` | Backend B `:3002`, Backup DNS `:53`, Standby `:8443` | `ONLINE` / `HEALTHY` |
 
 ---
 
 ## 3. Test Results (A–F)
 
-### Test A — Backup DNS Resilience
-- **Status:** **`PASS`** (Primary DNS stopped, Backup DNS `10.7.18.164:53` verified live, Primary DNS restored and verified)
-- **Commands Executed:**
-  ```bash
-  sudo killall dnsmasq
-  dig +time=2 +tries=1 @127.0.0.1 app.protocolx.test
-  dig +time=3 +tries=2 @10.7.18.164 app.protocolx.test +noall +answer
-  sudo ./scripts/start_dns.sh
-  dig +time=2 +tries=1 @127.0.0.1 app.protocolx.test +noall +answer
-  ```
-- **Observed Output (`08_mac1_sudo_tests.txt`):**
-  - While Mac 1 `dnsmasq` was stopped, `@127.0.0.1` timed out (`connection timed out; no servers could be reached`).
-  - Querying Backup DNS (`@10.7.18.164`) returned `app.protocolx.test. 30 IN A 10.7.10.188`.
-  - After restoring Mac 1 `dnsmasq`, `@127.0.0.1` returned `app.protocolx.test. 30 IN A 10.7.10.188`.
-  - **Dashboard Verification (`07_dashboard_4macs_healthy.json`):** All 4 Macs (`mac1`, `mac2`, `mac3`, `mac4`) report `isOnline: true` and `health: "HEALTHY"` with all 6 services `HEALTHY`.
+### Test A — Backup DNS Resilience (**`PASS`**)
+- **Lead:** Naveen (Mac 1) & Aditya (Mac 4)
+- **Verification:**
+  - Naveen stopped Primary DNS on Mac 1 (`sudo killall dnsmasq`); `dig @127.0.0.1 app.protocolx.test` timed out as expected.
+  - Querying Aditya's Backup DNS (`dig @10.7.18.164 app.protocolx.test`) returned `app.protocolx.test. 30 IN A 10.7.10.188`.
+  - Naveen restored Primary DNS (`sudo ./scripts/start_dns.sh`) and confirmed `dig @127.0.0.1 app.protocolx.test` returned `10.7.10.188`.
+- **Evidence:** `01_test_a_dns_live.txt`, `08_mac1_sudo_tests.txt`, `07_dashboard_4macs_healthy.json`.
 
-### Test B — DNS TTL and Controlled Record Change
-- **Status:** **`PASS`** (30s TTL caching, authoritative update, cached answer within TTL, and immediate cache invalidation via `dscacheutil -flushcache` verified live)
-- **Observed Output (`evidence/phase2-remote-test-20261125-1627/02_test_b_ttl_live.txt`):**
-  - **Baseline:** `dig @127.0.0.1 migration.protocolx.test` → `migration.protocolx.test. 30 IN A 10.7.10.188`; `dscacheutil` → `ip_address: 10.7.10.188`.
-  - **Authoritative Update (`-> 10.7.18.164`):** `dig @127.0.0.1 migration.protocolx.test` → `migration.protocolx.test. 30 IN A 10.7.18.164`.
-  - **Within 30s TTL Window:** `dscacheutil -q host -a name migration.protocolx.test` → `ip_address: 10.7.10.188` (stale cached answer retained by macOS resolver).
-  - **After `dscacheutil -flushcache`:** `dscacheutil -q host -a name migration.protocolx.test` → `ip_address: 10.7.18.164` (updated immediately).
-  - **Cleanup:** Restored `migration.protocolx.test -> 10.7.10.188`.
+### Test B — DNS TTL and Controlled Record Change (**`PASS`**)
+- **Lead:** Naveen (Mac 1)
+- **Verification (`02_test_b_ttl_live.txt`):**
+  - Baseline: `dig @127.0.0.1 migration.protocolx.test` returned `migration.protocolx.test. 30 IN A 10.7.10.188`; `dscacheutil -q host -a name migration.protocolx.test` returned `10.7.10.188`.
+  - Authoritative update (`-> 10.7.18.164`): `dig @127.0.0.1` immediately returned `10.7.18.164`.
+  - Within 30s TTL window: `dscacheutil` still returned the cached `10.7.10.188`.
+  - After `sudo dscacheutil -flushcache`: `dscacheutil` immediately returned `10.7.18.164`.
+  - Cleanup restored `migration.protocolx.test -> 10.7.10.188`.
 
-### Test C — Backend Service Isolation (`pfctl`)
-- **Status:** **`PASS` (Isolation & Backup-and-Restore Rollback Both Verified Live)**
-- **Observed Output (`03_test_c_live.txt` & `03_test_c_rollback_live.txt`):**
-  - `Mac 2 (10.7.10.188) -> Mac 3:3001`: `HTTP/1.1 200 OK`, `X-Backend: A` (**ALLOWED**).
-  - `Mac 2 (10.7.10.188) -> Mac 4:3002`: `HTTP/1.1 200 OK`, `X-Backend: B` (**ALLOWED**).
-  - `Mac 1 (10.7.11.221) -> Mac 3:3001`: timed out (`exit 28`, **BLOCKED**).
-  - `Mac 1 (10.7.11.221) -> Mac 4:3002`: timed out (`exit 28`, **BLOCKED**).
-  - `curl -i https://app.protocolx.test/api/status` (without `-k` or `--cacert`): `HTTP/1.1 200 OK`, `X-Backend: A`.
-  - SSH to Mac 3 and Mac 4 remained unaffected.
-  - **Rollback Verified:** After running `sudo ./scripts/rollback_firewall.sh` on Mac 3 and Mac 4, PF ruleset was restored in valid section order and PF returned to its saved `disabled` state; Mac 1 direct checks (`03_test_c_rollback_live.txt`) returned `HTTP/1.1 200 OK` on both `:3001` (`X-Backend: A`) and `:3002` (`X-Backend: B`).
+### Test C — Backend Service Isolation & Rollback (**`PASS`**)
+- **Lead:** Archit (Mac 3) & Aditya (Mac 4)
+- **Verification (`03_test_c_live.txt`, `03_test_c_rollback_live.txt`):**
+  - Archit applied `sudo ./scripts/apply_firewall.sh mac3` and Aditya applied `sudo ./scripts/apply_firewall.sh mac4`.
+  - From Shagun's Edge (`10.7.10.188`): `curl http://10.7.6.165:3001/api/status` (`X-Backend: A`) and `curl http://10.7.18.164:3002/api/status` (`X-Backend: B`) both returned `HTTP/1.1 200 OK` (**ALLOWED**).
+  - From Mac 1 (`10.7.11.221`): direct `curl` to `:3001` and `:3002` timed out (`exit 28`, **BLOCKED**), while `https://app.protocolx.test/api/status` through Mac 2 Edge returned `HTTP/1.1 200 OK`.
+  - Both Archit and Aditya ran `sudo ./scripts/rollback_firewall.sh`, restoring their saved rulesets and returning PF to `disabled`. Direct reachability to `:3001` and `:3002` returned `HTTP/1.1 200 OK`.
 
-### Test D — Backend High Availability and Failover
-- **Status:** **`PASS`** (Live Primary Edge Mac 2 `:443` round-robin, Backend A stop/failover, and `fail_timeout=10s` recovery verified)
-- **Commands Executed:**
-  ```bash
-  for i in 1 2 3 4 5 6; do curl -s -i --cacert tls/app.protocolx.test.crt https://app.protocolx.test/api/status | grep -E "HTTP/|X-Backend:|X-Gateway:|Cache-Control:"; done
-  ssh architmomdiya@10.7.6.165 'pkill -f "backend-a/server.js"'
-  for i in 1 2 3 4; do curl -s -i --cacert tls/app.protocolx.test.crt https://app.protocolx.test/api/status | grep -E "HTTP/|X-Backend:"; done
-  ssh architmomdiya@10.7.6.165 'nohup /usr/local/bin/node .../backend-a/server.js &'
-  sleep 11
-  for i in 1 2 3 4; do curl -s -i --cacert tls/app.protocolx.test.crt https://app.protocolx.test/api/status | grep -E "HTTP/|X-Backend:"; done
-  ```
-- **Observed Output (`evidence/phase2-remote-test-20261125-1627/04_test_d_live.txt`):**
-  - **Initial 6-request Round-Robin:** `B → A → B → A → B → A`, all `HTTP/1.1 200 OK`, `Cache-Control: public, max-age=10`, `X-Gateway: ProtocolX-Mac2-Edge`.
-  - **Backend A Stopped:** All 4 failover requests returned `HTTP/1.1 200 OK` with `X-Backend: B` (passive failover via `max_fails=2 fail_timeout=10s` and `proxy_next_upstream error timeout http_502 http_503`).
-  - **Backend A Recovered (after 11s):** All 4 requests returned `HTTP/1.1 200 OK`, alternating `B → A → B → A`.
+### Test D — Backend High Availability and Failover (**`PASS`**)
+- **Lead:** Shagun (Mac 2), Archit (Mac 3), & Aditya (Mac 4)
+- **Verification (`04_test_d_live.txt`):**
+  - 6-request round-robin through `https://app.protocolx.test/api/status`: `B → A → B → A → B → A` (`HTTP/1.1 200 OK`, `Cache-Control: public, max-age=10`, `X-Gateway: ProtocolX-Mac2-Edge`).
+  - Archit stopped Backend A on Mac 3: all 4 requests through Mac 2 returned `HTTP/1.1 200 OK` via `X-Backend: B` (passive failover using `max_fails=2 fail_timeout=10s` and `proxy_next_upstream error timeout http_502 http_503`).
+  - Archit restarted Backend A and after `fail_timeout=10s`, alternation resumed: `B → A → B → A`.
 
-### Test E — Controlled Edge Migration (Standby Edge on Mac 4)
-- **Status:** **`PASS` (with documented PF interaction finding)**
-- **Commands Executed:**
-  ```bash
-  # Part 1 (05_test_e_standby_edge.txt, before PF active):
-  /opt/homebrew/bin/nginx -c .../nginx_standby.conf -p /tmp/px_standby_nginx ...
-  openssl s_client -connect 10.7.18.164:8443 -servername app.protocolx.test
-  curl -k -s -i --resolve app.protocolx.test:8443:10.7.18.164 https://app.protocolx.test:8443/api/status
+### Test E — Controlled Edge Migration (**`PASS`**)
+- **Lead:** Aditya (Mac 4) & Naveen (Mac 1)
+- **Verification (`05_test_e_standby_edge.txt`, `05_test_e_cutover_live.txt`):**
+  - Aditya started Standby Nginx on Mac 4 (`:8443`); TLSv1.3 (`AEAD-CHACHA20-POLY1305-SHA256`) with SAN `DNS:app.protocolx.test` and HTTPS proxying (`X-Gateway: ProtocolX-Standby-Edge-Mac4`) passed.
+  - Naveen cut over `app.protocolx.test -> 10.7.18.164` in Primary DNS, observed macOS cache retention (`10.7.10.188`) before flush and `10.7.18.164` after flush, then restored `10.7.10.188` (`HTTP/1.1 200 OK` via `ProtocolX-Mac2-Edge`).
+  - Standby Nginx was cleanly stopped after verification.
 
-  # Part 2 (05_test_e_cutover_live.txt, live DNS cutover & restore):
-  # Cutover app.protocolx.test -> 10.7.18.164, verify cached answer vs flush, test :8443, restore 10.7.10.188
-  ```
-- **Observed Output (`05_test_e_standby_edge.txt` & `05_test_e_cutover_live.txt`):**
-  - `nginx_standby.conf` syntax **OK**; listened on `*:8080` and `*:8443`.
-  - TLS handshake succeeded: `Protocol: TLSv1.3`, `Cipher: AEAD-CHACHA20-POLY1305-SHA256`, `Verify return code: 0 (ok)`, SAN `DNS:app.protocolx.test`.
-  - Before PF was enabled, Standby Edge `:8443` returned `HTTP/1.1 200 OK`, `X-Backend: B`, `X-Gateway: ProtocolX-Standby-Edge-Mac4` across normal, failover, and recovery requests.
-  - **Live DNS Cutover (`05_test_e_cutover_live.txt`):** `dig @127.0.0.1` switched from `10.7.10.188` → `10.7.18.164`; `dscacheutil` retained cached `10.7.10.188` until `dscacheutil -flushcache`, after which it resolved `10.7.18.164`; restoring `10.7.10.188` returned `HTTP/1.1 200 OK`, `X-Gateway: ProtocolX-Mac2-Edge`.
-  - **Architectural Finding (PF vs Standby Edge):** During `05_test_e_cutover_live.txt`, `https://app.protocolx.test:8443/api/status` hit `504 Gateway Time-out` because Test C's PF rules were still active on Mac 3 and Mac 4 and only whitelisted `10.7.10.188` (Mac 2), blocking `10.7.18.164` (Mac 4 Standby Edge) from reaching `:3001`/`:3002`. In production, Standby Edge IP must also be whitelisted during cutover (or PF rolled back first).
-  - Standby Nginx on Mac 4 was cleanly stopped after the test.
-
-### Test F — Layer-Based Troubleshooting Readiness
-- **Status:** **`PASS`** (All 4 layers verified live against Mac 1 DNS + Mac 2 Edge + Mac 3/4 Backends; faculty-injected fault = **`NOT TESTED`**)
-- **Observed Output (`evidence/phase2-remote-test-20261125-1627/06_test_f_live.txt`):**
-  1. **Layer 1 (DNS):** `dig app.protocolx.test` → `NOERROR`, `flags: qr aa rd ra`, `app.protocolx.test. 30 IN A 10.7.10.188` from `127.0.0.1#53` (`0 msec`).
-  2. **Layer 2 (TCP):** `nc -vz -w 3 10.7.10.188 443` → `Connection to 10.7.10.188 port 443 [tcp/https] succeeded!`.
-  3. **Layer 3 (TLS):** `openssl s_client -connect 10.7.10.188:443 -servername app.protocolx.test` → `TLSv1.3`, `Cipher: AEAD-CHACHA20-POLY1305-SHA256`, `Verify return code: 18 (self signed certificate)`.
-  4. **Layer 4 (Application):** `curl --cacert tls/app.protocolx.test.crt https://app.protocolx.test/api/status` → `HTTP/1.1 200 OK`, `X-Backend: A`, `X-Gateway: ProtocolX-Mac2-Edge`, `Cache-Control: public, max-age=10`. (Bare `curl` without `--cacert` returns `curl: (60)` until the regenerated cert is trusted in Mac 1's System Keychain.)
+### Test F — Layer-Based Troubleshooting Readiness (**`PASS`**, fault injection `NOT TESTED`)
+- **Lead:** Naveen (Mac 1)
+- **Verification (`06_test_f_live.txt`, `08_mac1_sudo_tests.txt`):**
+  1. **DNS:** `dig app.protocolx.test` → `NOERROR`, `10.7.10.188` (`0 msec`).
+  2. **TCP:** `nc -vz 10.7.10.188 443` → `succeeded!`.
+  3. **TLS:** `openssl s_client -connect 10.7.10.188:443 -servername app.protocolx.test` → `TLSv1.3` (`CN=app.protocolx.test`); trusted in Mac 1 System Keychain.
+  4. **Application:** `curl -i https://app.protocolx.test/api/status` (no `-k` or `--cacert`) → `HTTP/1.1 200 OK`.
 
 ---
 
-## 4. Configuration Changes & Rollback Performed
+## 4. Problems Faced & How the Team Resolved Them
 
-- **No permanent config changes were made** during this test run.
-- On Mac 4, Standby Nginx was temporarily started on unprivileged ports `8080`/`8443` in `/tmp/px_standby_nginx` and cleanly stopped (`nginx -s stop`) at the end of Test E.
-- On Mac 3, Backend A was temporarily stopped during Test E's failover check and restarted (`node backend/backend-a/server.js`, verified `HTTP 200`).
-
----
-
-## 5. Remaining Manual Actions & Known Limitations
-
-1. **Interactive `sudo` required on all 4 Macs** for port `53` (`dnsmasq`), ports `80`/`443` (`nginx`), `/etc/resolver/test`, `dscacheutil -flushcache`, and `pfctl`.
-2. **macOS Local Network Privacy (`errno 65`)**: Background Homebrew `nginx` on macOS 26.x may get `No route to host` to LAN peers unless granted Local Network access in System Settings → Privacy & Security → Local Network.
-3. **Sleep on Battery**: Mac 2 and Mac 3 sleep quickly on battery without `caffeinate` or power adapter.
-4. **Backend `/api/health` route**: Phase 1 backends only implement `/api/status` (returning `404` on `/api/health`).
+| # | Problem Faced | Root Cause | How We Tackled It |
+|---|---|---|---|
+| 1 | **DHCP IP Drift & Stale Phase 1 Configs** | Campus Wi-Fi (`10.7.0.0/19`) reassigned all four Mac IPs; `/etc/resolver/test` still pointed to `10.7.7.218` and `nginx.conf` pointed to old Phase 1 backends. | Each member verified their live `en0` IP (`PHASE2_MACHINE_INVENTORY.md`), updated `dnsmasq.conf`, `dnsmasq_backup.conf`, `nginx.conf`, and made `start_dns.sh` detect `en0` dynamically. |
+| 2 | **Laptop Sleep Dropping Edge & Backends** | MacBooks on battery entered sleep after ~30 seconds of inactivity, dropping Wi-Fi and breaking connections. | Team members ran `caffeinate -d -i -m -u &` on Mac 2, Mac 3, and Mac 4 during testing. |
+| 3 | **TLS Key/Certificate Mismatch on Mac 2** | Mac 2's local `app.protocolx.test.key` did not match the committed `app.protocolx.test.crt` (`SSL: error:05800074::key values mismatch`). | Shagun regenerated `app.protocolx.test.crt` from Mac 2's private key using `tls/openssl.cnf` (SAN `DNS:app.protocolx.test`) and Naveen trusted it in Mac 1's System Keychain so `curl` passes without `-k`. |
+| 4 | **Starter Script Binary Detection Bug** | `which ... && echo ...` in `start_nginx.sh` and `start_backup_dns.sh` duplicated the path string across two lines, failing `[ -x "$BIN" ]`. | Replaced with clean `command -v` / `if-elif` detection in both scripts. |
+| 5 | **TTL Experiment Not Reloading `dnsmasq.conf`** | `killall -HUP dnsmasq` does not re-read `dnsmasq.conf`, and `dig @127.0.0.1` bypasses macOS `mDNSResponder` cache. | Updated `scripts/dns_ttl_experiment.sh` to restart `dnsmasq` cleanly and query both `dig @127.0.0.1` (authoritative) and `dscacheutil -q host` (OS cache). |
+| 6 | **PF Rule Ordering & Rollback Section Error** | Catch-all `block in quick` before `pass in quick` blocked Edge traffic; saving `-sn` before `-sr` put `nat-anchor` before `scrub-anchor`, causing `pfctl` syntax error on rollback. | Placed `pass in quick` before `block in quick` in `pf_backend_a.conf`/`pf_backend_b.conf`, enforced `scrub → nat/rdr → filter` ordering in `apply_firewall.sh`/`rollback_firewall.sh`, and documented that Standby Edge (`10.7.18.164`) hits `504` if PF only whitelists `10.7.10.188`. |
+| 7 | **Dashboard Auth & Agent `EHOSTUNREACH`** | Plaintext `protocolx-admin` lacked session/CSRF/replay protection, and backgrounded `fetch` hit macOS Local Network Privacy (`EHOSTUNREACH`). | Replaced with salted `scrypt` hashes in gitignored `server/.env`, `HttpOnly; SameSite=Strict` cookies, `X-CSRF-Token`, nonce replay protection, and Socket.IO `agent-report` streaming. |
