@@ -47,10 +47,13 @@ All orchestration and diagnostic checks were executed from **Mac 1** over passwo
   - **Dashboard Verification (`07_dashboard_4macs_healthy.json`):** All 4 Macs (`mac1`, `mac2`, `mac3`, `mac4`) report `isOnline: true` and `health: "HEALTHY"` with all 6 services `HEALTHY`.
 
 ### Test B — DNS TTL and Controlled Record Change
-- **Status:** **`FAIL` (Script Bug Found & Fixed; Re-test Pending)**
-- **Observed Output (`08_mac1_sudo_tests.txt`):**
-  - `scripts/dns_ttl_experiment.sh` previously used `killall -HUP dnsmasq`, which does not reload `dnsmasq.conf` (`dig @127.0.0.1 ttl-test.protocolx.test` returned empty).
-  - Fixed `scripts/dns_ttl_experiment.sh` to restart `dnsmasq` cleanly, use `host-record=migration.protocolx.test,...,30`, and query both `dig @127.0.0.1` and `dscacheutil -q host` to observe macOS cache retention vs flush.
+- **Status:** **`PASS`** (30s TTL caching, authoritative update, cached answer within TTL, and immediate cache invalidation via `dscacheutil -flushcache` verified live)
+- **Observed Output (`evidence/phase2-remote-test-20261125-1627/02_test_b_ttl_live.txt`):**
+  - **Baseline:** `dig @127.0.0.1 migration.protocolx.test` → `migration.protocolx.test. 30 IN A 10.7.10.188`; `dscacheutil` → `ip_address: 10.7.10.188`.
+  - **Authoritative Update (`-> 10.7.18.164`):** `dig @127.0.0.1 migration.protocolx.test` → `migration.protocolx.test. 30 IN A 10.7.18.164`.
+  - **Within 30s TTL Window:** `dscacheutil -q host -a name migration.protocolx.test` → `ip_address: 10.7.10.188` (stale cached answer retained by macOS resolver).
+  - **After `dscacheutil -flushcache`:** `dscacheutil -q host -a name migration.protocolx.test` → `ip_address: 10.7.18.164` (updated immediately).
+  - **Cleanup:** Restored `migration.protocolx.test -> 10.7.10.188`.
 
 ### Test C — Backend Service Isolation (`pfctl`)
 - **Status:** **`PASS` (Isolation Active & Verified; Rollback Pending)**
