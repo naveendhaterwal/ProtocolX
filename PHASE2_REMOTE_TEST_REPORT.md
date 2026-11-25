@@ -31,40 +31,36 @@ All orchestration and diagnostic checks were executed from **Mac 1** over passwo
 ## 3. Test Results (A–F)
 
 ### Test A — Backup DNS Resilience
-- **Status:** **`PARTIAL`** (Both Primary DNS `10.7.11.221:53` and Backup DNS `10.7.18.164:53` verified live; stop-primary-DNS failover step `BLOCKED` by interactive `sudo` on Mac 1)
+- **Status:** **`PASS`** (Primary DNS stopped, Backup DNS `10.7.18.164:53` verified live, Primary DNS restored and verified)
 - **Commands Executed:**
   ```bash
-  dig +time=2 +tries=1 @127.0.0.1 app.protocolx.test +noall +answer +stats
-  dig +time=2 +tries=1 @10.7.11.221 app.protocolx.test +noall +answer +stats
-  dig +time=3 +tries=2 @10.7.18.164 app.protocolx.test +noall +answer +stats
+  sudo killall dnsmasq
+  dig +time=2 +tries=1 @127.0.0.1 app.protocolx.test
+  dig +time=3 +tries=2 @10.7.18.164 app.protocolx.test +noall +answer
+  sudo ./scripts/start_dns.sh
+  dig +time=2 +tries=1 @127.0.0.1 app.protocolx.test +noall +answer
   ```
-- **Observed Output (`evidence/phase2-remote-test-20261125-1627/01_test_a_dns_live.txt`):**
-  - Primary DNS (`127.0.0.1#53` and `10.7.11.221#53`): `app.protocolx.test. 30 IN A 10.7.10.188` (`0 msec` / `27 msec`).
-  - Backup DNS (`10.7.18.164#53`): `app.protocolx.test. 30 IN A 10.7.10.188` (`13 msec`), and `migration.protocolx.test. 30 IN A 10.7.10.188`.
+- **Observed Output (`08_mac1_sudo_tests.txt`):**
+  - While Mac 1 `dnsmasq` was stopped, `@127.0.0.1` timed out (`connection timed out; no servers could be reached`).
+  - Querying Backup DNS (`@10.7.18.164`) returned `app.protocolx.test. 30 IN A 10.7.10.188`.
+  - After restoring Mac 1 `dnsmasq`, `@127.0.0.1` returned `app.protocolx.test. 30 IN A 10.7.10.188`.
   - **Dashboard Verification (`07_dashboard_4macs_healthy.json`):** All 4 Macs (`mac1`, `mac2`, `mac3`, `mac4`) report `isOnline: true` and `health: "HEALTHY"` with all 6 services `HEALTHY`.
 
 ### Test B — DNS TTL and Controlled Record Change
-- **Status:** **`BLOCKED`** (Config verified; live TTL test requires `sudo` for `dnsmasq :53` and `dscacheutil -flushcache`)
-- **Observed Output (`evidence/phase2-remote-test-20261125-1627/02_test_b_ttl.txt`):**
-  - `dns/dnsmasq.conf` sets `local-ttl=30` and `host-record=migration.protocolx.test,10.7.10.188,30`.
-  - `scripts/dns_ttl_experiment.sh` is ready for interactive `sudo` execution.
+- **Status:** **`FAIL` (Script Bug Found & Fixed; Re-test Pending)**
+- **Observed Output (`08_mac1_sudo_tests.txt`):**
+  - `scripts/dns_ttl_experiment.sh` previously used `killall -HUP dnsmasq`, which does not reload `dnsmasq.conf` (`dig @127.0.0.1 ttl-test.protocolx.test` returned empty).
+  - Fixed `scripts/dns_ttl_experiment.sh` to restart `dnsmasq` cleanly, use `host-record=migration.protocolx.test,...,30`, and query both `dig @127.0.0.1` and `dscacheutil -q host` to observe macOS cache retention vs flush.
 
 ### Test C — Backend Service Isolation (`pfctl`)
-- **Status:** **`BLOCKED`** (PF syntax **PASS** via `pfctl -vnf`; live rule loading & blocked-access test blocked by `sudo` on Mac 3 & Mac 4)
-- **Commands Executed:**
-  ```bash
-  ssh architmomdiya@10.7.6.165 'pfctl -vnf /Users/architmomdiya/ProtocolX/firewall/pf_backend_a.conf'
-  ssh flexer@10.7.18.164 'pfctl -vnf /Users/flexer/Documents/Projects/CN/ProtocolX/firewall/pf_backend_b.conf'
-  ```
-- **Observed Output (`evidence/phase2-remote-test-20261125-1627/03_test_c_firewall.txt`):**
-  - Mac 4 `pfctl -vnf` parsed cleanly:
-    ```
-    set skip on { lo0 }
-    pass in proto tcp from any to any port = 22 flags S/SA keep state
-    pass in quick inet proto tcp from 10.7.10.188 to any port = 3002 flags S/SA keep state
-    block drop in quick proto tcp from any to any port = 3002
-    ```
-  - `sudo -n pfctl -s info` returned `sudo: a password is required` on both Mac 3 and Mac 4.
+- **Status:** **`PASS` (Isolation Active & Verified; Rollback Pending)**
+- **Observed Output (`03_test_c_live.txt`):**
+  - `Mac 2 (10.7.10.188) -> Mac 3:3001`: `HTTP/1.1 200 OK`, `X-Backend: A` (**ALLOWED**).
+  - `Mac 2 (10.7.10.188) -> Mac 4:3002`: `HTTP/1.1 200 OK`, `X-Backend: B` (**ALLOWED**).
+  - `Mac 1 (10.7.11.221) -> Mac 3:3001`: timed out (`exit 28`, **BLOCKED**).
+  - `Mac 1 (10.7.11.221) -> Mac 4:3002`: timed out (`exit 28`, **BLOCKED**).
+  - `curl -i https://app.protocolx.test/api/status` (without `-k` or `--cacert`): `HTTP/1.1 200 OK`, `X-Backend: A`.
+  - SSH to Mac 3 and Mac 4 remained unaffected.
 
 ### Test D — Backend High Availability and Failover
 - **Status:** **`PASS`** (Live Primary Edge Mac 2 `:443` round-robin, Backend A stop/failover, and `fail_timeout=10s` recovery verified)

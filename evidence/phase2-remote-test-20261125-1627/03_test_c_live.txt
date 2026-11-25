@@ -1,0 +1,31 @@
+=== Test C (Live): Backend Service Isolation Verification ===
+--- 1. Mac 2 (Edge 10.7.10.188) -> Mac 3:3001 (Expected: ALLOWED) ---
+HTTP/1.1 200 OK
+X-Backend: A
+Content-Type: application/json
+Date: Wed, 25 Nov 2026 12:43:06 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+--- 2. Mac 2 (Edge 10.7.10.188) -> Mac 4:3002 (Expected: ALLOWED) ---
+HTTP/1.1 200 OK
+X-Backend: B
+Content-Type: application/json
+Date: Wed, 25 Nov 2026 12:43:06 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+--- 3. Mac 1 (10.7.11.221) -> Mac 3:3001 (Expected: BLOCKED) ---
+BLOCKED_AS_EXPECTED (exit 28)
+--- 4. Mac 1 (10.7.11.221) -> Mac 4:3002 (Expected: BLOCKED) ---
+BLOCKED_AS_EXPECTED (exit 28)
+--- 5. End-to-End HTTPS via Mac 2 Edge while PF is active ---
+HTTP/1.1 200 OK
+Server: nginx/1.31.10
+Date: Wed, 25 Nov 2026 12:43:13 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+X-Backend: A
+Cache-Control: public, max-age=10
+--- 6. SSH Reachability Unaffected ---
+Mac 3 SSH OK
+Mac 4 SSH OK
