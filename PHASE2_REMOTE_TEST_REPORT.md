@@ -56,14 +56,15 @@ All orchestration and diagnostic checks were executed from **Mac 1** over passwo
   - **Cleanup:** Restored `migration.protocolx.test -> 10.7.10.188`.
 
 ### Test C — Backend Service Isolation (`pfctl`)
-- **Status:** **`PASS` (Isolation Active & Verified; Rollback Pending)**
-- **Observed Output (`03_test_c_live.txt`):**
+- **Status:** **`PASS` (Isolation & Backup-and-Restore Rollback Both Verified Live)**
+- **Observed Output (`03_test_c_live.txt` & `03_test_c_rollback_live.txt`):**
   - `Mac 2 (10.7.10.188) -> Mac 3:3001`: `HTTP/1.1 200 OK`, `X-Backend: A` (**ALLOWED**).
   - `Mac 2 (10.7.10.188) -> Mac 4:3002`: `HTTP/1.1 200 OK`, `X-Backend: B` (**ALLOWED**).
   - `Mac 1 (10.7.11.221) -> Mac 3:3001`: timed out (`exit 28`, **BLOCKED**).
   - `Mac 1 (10.7.11.221) -> Mac 4:3002`: timed out (`exit 28`, **BLOCKED**).
   - `curl -i https://app.protocolx.test/api/status` (without `-k` or `--cacert`): `HTTP/1.1 200 OK`, `X-Backend: A`.
   - SSH to Mac 3 and Mac 4 remained unaffected.
+  - **Rollback Verified:** After running `sudo ./scripts/rollback_firewall.sh` on Mac 3 and Mac 4, PF ruleset was restored in valid section order and PF returned to its saved `disabled` state; Mac 1 direct checks (`03_test_c_rollback_live.txt`) returned `HTTP/1.1 200 OK` on both `:3001` (`X-Backend: A`) and `:3002` (`X-Backend: B`).
 
 ### Test D — Backend High Availability and Failover
 - **Status:** **`PASS`** (Live Primary Edge Mac 2 `:443` round-robin, Backend A stop/failover, and `fail_timeout=10s` recovery verified)

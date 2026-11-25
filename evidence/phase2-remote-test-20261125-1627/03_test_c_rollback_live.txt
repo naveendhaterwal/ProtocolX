@@ -1,0 +1,15 @@
+=== Test C Rollback Verification from Mac 1 (10.7.11.221) ===
+--- Mac 1 -> Mac 3:3001 ---
+HTTP/1.1 200 OK
+X-Backend: A
+Content-Type: application/json
+Date: Wed, 25 Nov 2026 12:53:10 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+--- Mac 1 -> Mac 4:3002 ---
+HTTP/1.1 200 OK
+X-Backend: B
+Content-Type: application/json
+Date: Wed, 25 Nov 2026 12:53:10 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
