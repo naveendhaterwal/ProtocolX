@@ -19,7 +19,21 @@ echo "[1/3] Previous PF status: $PREV_STATUS"
 
 echo "[2/3] Restoring saved PF ruleset from $BACKUP_DIR/pf_rules.bak..."
 if [ -s "$BACKUP_DIR/pf_rules.bak" ]; then
-    sudo pfctl -f "$BACKUP_DIR/pf_rules.bak"
+    # Re-order sections if needed (options/scrub -> nat/rdr/binat -> filtering) so pfctl -f accepts it
+    ORDERED_CONF="/var/tmp/protocolx_pf_backup/pf_rules_ordered.bak"
+    {
+        grep -E '^(set |scrub)' "$BACKUP_DIR/pf_rules.bak" || true
+        grep -E '^(nat|rdr|binat)' "$BACKUP_DIR/pf_rules.bak" || true
+        grep -vE '^(set |scrub|nat|rdr|binat)' "$BACKUP_DIR/pf_rules.bak" || true
+    } | sudo tee "$ORDERED_CONF" >/dev/null
+
+    if sudo pfctl -nf "$ORDERED_CONF" 2>/dev/null; then
+        sudo pfctl -f "$ORDERED_CONF"
+    elif [ -f /etc/pf.conf ]; then
+        echo "Saved ruleset could not be parsed directly; falling back to /etc/pf.conf..."
+        sudo pfctl -f /etc/pf.conf
+    fi
+    sudo rm -f "$ORDERED_CONF"
 elif [ -f /etc/pf.conf ]; then
     sudo pfctl -f /etc/pf.conf
 fi

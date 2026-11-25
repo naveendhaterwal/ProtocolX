@@ -37,9 +37,12 @@ if [ ! -f "$BACKUP_DIR/pf_status.bak" ]; then
         echo "disabled" | sudo tee "$BACKUP_DIR/pf_status.bak" >/dev/null
     fi
 
-    # Save active NAT/RDR and Filter rules; fallback to /etc/pf.conf if empty
-    sudo pfctl -sn 2>/dev/null | sudo tee "$BACKUP_DIR/pf_rules.bak" >/dev/null || true
-    sudo pfctl -sr 2>/dev/null | sudo tee -a "$BACKUP_DIR/pf_rules.bak" >/dev/null || true
+    # Save active PF rules in valid PF section order: options/normalization -> translation -> filtering
+    {
+        sudo pfctl -sr 2>/dev/null | grep -E '^(set |scrub)' || true
+        sudo pfctl -sn 2>/dev/null || true
+        sudo pfctl -sr 2>/dev/null | grep -vE '^(set |scrub)' || true
+    } | sudo tee "$BACKUP_DIR/pf_rules.bak" >/dev/null
     if [ ! -s "$BACKUP_DIR/pf_rules.bak" ] && [ -f /etc/pf.conf ]; then
         sudo cp /etc/pf.conf "$BACKUP_DIR/pf_rules.bak"
     fi
