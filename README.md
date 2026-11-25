@@ -1,6 +1,33 @@
 # ProtocolX
 
-## Computer Networks — Phase 1
+## Phase 2: Distributed Multi-Mac Orchestration & Control Center
+
+ProtocolX Phase 2 extends the platform into a multi-host distributed system spanning four physical Mac computers communicating across an active private campus LAN (`10.7.0.0/19`). Each team member configured, tested, and verified their assigned node, backed by a real-time React + Tailwind CSS dashboard, Socket.IO event streaming, and persistent SQLite monitoring.
+
+### Phase 2 Documentation & Deliverables Index
+- [Phase 2 Final Team Verification Report (Markdown)](PHASE2_REMOTE_TEST_REPORT.md) — Live verification results for all 6 Phase 2 requirements (`A`–`F`) and problems solved.
+- [Phase 2 Final Report (LaTeX)](docs/PHASE2_FINAL_REPORT.tex) & [Compiled PDF](docs/PHASE2_FINAL_REPORT.pdf) — Print-ready evaluation report.
+- [Phase 2 Interactive Presentation (HTML)](docs/PHASE2_PRESENTATION.html) — 10-slide animated viva deck with live terminal proofs.
+- [Phase 2 Quick Command Reference (Start / Stop / Bypass)](docs/PHASE2_COMMANDS.md) — One-liner commands for each Mac.
+- [Phase 2 Hardware & Machine Inventory](docs/PHASE2_MACHINE_INVENTORY.md) — Live verified IPs, MAC addresses, hostnames, and roles.
+- [Phase 2 Distributed Architecture](docs/PHASE2_ARCHITECTURE.md) — Multi-tier topology, Mermaid flowcharts, and network matrix.
+- [Phase 2 Firewall & Service Isolation](docs/PHASE2_FIREWALL_EVALUATION.md) — macOS Packet Filter (`pfctl`) evaluation, rulesets, and verified rollback.
+- [Phase 2 DNS Redundancy & TTL Dynamics](docs/PHASE2_DNS_FAILOVER.md) — Primary vs Backup DNS failover and 30-second TTL migration experiment.
+- [Phase 2 Standby Edge Migration](docs/PHASE2_STANDBY_EDGE.md) — Nginx hot standby configuration, TLS SAN portability, and cutover plan.
+- [Phase 2 Empirical Test Results](docs/PHASE2_TEST_RESULTS.md) — Verified command logs across all physical nodes.
+- [Phase 2 Team Working Rules](docs/PHASE2_WORKING_RULES.md) — Strict collaboration rules and safety constraints.
+
+### Phase 2 Team Hardware Matrix
+| Student | Machine | Assigned Responsibility | Verified LAN IP | Primary Service |
+|---|---|---|---|---|
+| **Naveen** | Mac 1 | Integration Lead, Central Monitor (`:4000`), Primary DNS (`:53`) | `10.7.11.221` | Dashboard API, Web UI, dnsmasq |
+| **Shagun** | Mac 2 | Edge Gateway, TLS 1.3 Termination, Reverse Proxy, Load Balancer | `10.7.10.188` | Nginx (:80, :443) |
+| **Archit** | Mac 3 | Backend Worker A, Health Probing, Firewall Isolation | `10.7.6.165` | Node.js Backend A (:3001) |
+| **Aditya** | Mac 4 | Backend Worker B, Backup DNS, Standby Edge, Firewall Rules | `10.7.18.164` | Node.js Backend B (:3002), dnsmasq |
+
+---
+
+## Phase 1 Overview (Preserved Baseline)
 
 ProtocolX is a fully local, multi-machine private network service platform deployed across four macOS laptops on a shared local area network (LAN). The project demonstrates core computer networking protocols and systems engineering concepts in a physical multi-host environment without relying on cloud infrastructure, public domain registrars, or commercial certificate authorities.
 

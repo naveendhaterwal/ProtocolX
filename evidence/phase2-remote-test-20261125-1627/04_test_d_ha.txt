@@ -1,0 +1,130 @@
+=== Test D: Backend HA & Primary Edge (Mac 2) ===
+--- Backend A health & status ---
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    53    0    53    0     0    685      0 --:--:-- --:--:-- --:--:--   688
+HTTP/1.1 404 Not Found
+X-Backend: A
+Content-Type: application/json
+Date: Wed, 25 Nov 2026 10:57:53 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{
+  "error": "Not Found",
+  "backend": "Backend A"
+}
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    73    0    73    0     0   4357      0 --:--:-- --:--:-- --:--:--  4562
+HTTP/1.1 200 OK
+X-Backend: A
+Content-Type: application/json
+Date: Wed, 25 Nov 2026 10:57:53 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{
+  "status": "OK",
+  "backend": "Backend A",
+  "uptime": 100.60592175
+}
+
+--- Backend B health & status ---
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    26    0    26    0     0    820      0 --:--:-- --:--:-- --:--:--   838
+HTTP/1.1 404 Not Found
+X-Backend: B
+Content-Type: text/plain; charset=utf-8
+Date: Wed, 25 Nov 2026 10:57:53 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+404 Not Found (Backend B)
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    60    0    60    0     0   3948      0 --:--:-- --:--:-- --:--:--  4000
+HTTP/1.1 200 OK
+X-Backend: B
+Content-Type: application/json
+Date: Wed, 25 Nov 2026 10:57:53 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"backend":"B","status":"ok","host":"vk.local","port":3002}
+
+--- Mac 2 nginx/nginx.conf ---
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream protocolx_backends {
+        # Round-robin load balancing with passive health monitoring
+        server 10.7.6.165:3001 max_fails=2 fail_timeout=10s;
+        server 10.7.18.164:3002 max_fails=2 fail_timeout=10s;
+    }
+
+    server {
+        listen 80;
+        server_name app.protocolx.test;
+
+        # Plain HTTP redirected automatically to HTTPS
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name app.protocolx.test;
+
+        # TLS 1.2 / 1.3 Termination (Shagun's Mac 2 absolute path)
+        ssl_certificate     /Users/Apple/Downloads/cn/tls/app.protocolx.test.crt;
+        ssl_certificate_key /Users/Apple/Downloads/cn/tls/app.protocolx.test.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+
+        # Passive failover and upstream timeout tuning
+        proxy_next_upstream error timeout http_502 http_503;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 5s;
+        proxy_send_timeout 5s;
+
+        # Standard reverse proxy headers
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+
+        location /api/status {
+            proxy_method GET;
+            proxy_pass http://protocolx_backends;
+            add_header Cache-Control "public, max-age=10";
+            add_header X-Gateway "ProtocolX-Mac2-Edge";
+        }
+
+        location /api/health {
+            proxy_pass http://protocolx_backends;
+            add_header X-Gateway "ProtocolX-Mac2-Edge";
+        }
+
+        location / {
+            proxy_pass http://protocolx_backends;
+            add_header X-Gateway "ProtocolX-Mac2-Edge";
+        }
+    }
+}
+--- Mac 2 nginx -t ---
+nginx: [alert] could not open error log file: open() "/opt/homebrew/var/log/nginx/error.log" failed (13: Permission denied)
+nginx: the configuration file /Users/Apple/Downloads/cn/nginx/nginx.conf syntax is ok
+2026/11/25 16:27:54 [emerg] 91104#0: open() "/opt/homebrew/var/run/nginx.pid" failed (13: Permission denied)
+nginx: configuration file /Users/Apple/Downloads/cn/nginx/nginx.conf test failed
+--- Mac 2 sudo check for ports 80/443 ---
+sudo: a password is required
+Mac 2 BLOCKED: sudo password required to bind ports 80/443

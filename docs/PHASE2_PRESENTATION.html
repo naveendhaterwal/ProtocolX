@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProtocolX — Phase 1 to Phase 2 Evolution</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #cc785c;
+      --primary-active: #a9583e;
+      --ink: #141413;
+      --body: #3d3d3a;
+      --body-strong: #252523;
+      --muted: #6c6a64;
+      --muted-soft: #8e8b82;
+      --hairline: #e6dfd8;
+      --hairline-soft: #ebe6df;
+      --canvas: #faf9f5;
+      --surface-soft: #f5f0e8;
+      --surface-card: #efe9de;
+      --surface-cream-strong: #e8e0d2;
+      --surface-dark: #181715;
+      --surface-dark-elevated: #252320;
+      --surface-dark-soft: #1f1e1b;
+      --on-primary: #ffffff;
+      --on-dark: #faf9f5;
+      --on-dark-soft: #a09d96;
+      --accent-teal: #5db8a6;
+      --accent-amber: #e8a55a;
+      --success: #5db872;
+      --warning: #d4a017;
+      --error: #c64545;
+
+      --font-display: "Cormorant Garamond", "Tiempos Headline", Georgia, serif;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Bar */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      background: var(--canvas);
+      border-bottom: 1px solid var(--hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      z-index: 50;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--ink);
+    }
+    .brand-mark {
+      width: 20px;
+      height: 20px;
+      color: var(--primary);
+      animation: spinSlow 24s linear infinite;
+    }
+    @keyframes spinSlow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .topbar-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .slide-counter {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--surface-card);
+      color: var(--ink);
+      padding: 4px 10px;
+      border-radius: 9999px;
+      border: 1px solid var(--hairline);
+    }
+    .nav-btns { display: flex; gap: 6px; }
+    .btn-circle {
+      width: 34px; height: 34px;
+      border-radius: 9999px;
+      border: 1px solid var(--hairline);
+      background: var(--canvas);
+      color: var(--ink);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+      transition: background 0.15s;
+    }
+    .btn-circle:hover { background: var(--surface-soft); }
+    .btn-circle:active { background: var(--surface-card); }
+    .btn-primary-sm {
+      background: var(--primary);
+      color: var(--on-primary);
+      border: none;
+      border-radius: 8px;
+      padding: 7px 13px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary-sm:hover { background: var(--primary-active); }
+    .btn-secondary-sm {
+      background: var(--canvas);
+      color: var(--ink);
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-secondary-sm:hover { background: var(--surface-card); }
+
+    /* Progress Bar */
+    .progress-track {
+      position: fixed;
+      top: 56px; left: 0; right: 0;
+      height: 3px;
+      background: var(--hairline-soft);
+      z-index: 50;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Slide Viewport */
+    .deck {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      padding-top: 59px;
+    }
+    .slide {
+      position: absolute;
+      inset: 59px 0 0 0;
+      padding: 24px 48px 22px;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    .slide.active {
+      display: flex;
+      animation: slideEnter 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    @keyframes slideEnter {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .slide.active .stagger-1 { animation: cardRise 0.45s 0.05s both cubic-bezier(0.22, 1, 0.36, 1); }
+    .slide.active .stagger-2 { animation: cardRise 0.45s 0.13s both cubic-bezier(0.22, 1, 0.36, 1); }
+    .slide.active .stagger-3 { animation: cardRise 0.45s 0.21s both cubic-bezier(0.22, 1, 0.36, 1); }
+    .slide.active .stagger-4 { animation: cardRise 0.45s 0.29s both cubic-bezier(0.22, 1, 0.36, 1); }
+    @keyframes cardRise {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Animated SVG flow lines */
+    .flow-line {
+      stroke-dasharray: 6 5;
+      animation: dashFlow 1.4s linear infinite;
+    }
+    .flow-line-slow {
+      stroke-dasharray: 5 5;
+      animation: dashFlow 2.4s linear infinite;
+    }
+    @keyframes dashFlow {
+      to { stroke-dashoffset: -22; }
+    }
+    .pulse-dot {
+      animation: pulseGlow 1.8s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(1.25); }
+    }
+
+    /* Typography */
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      margin-bottom: 5px;
+    }
+    h1.display {
+      font-family: var(--font-display);
+      font-size: clamp(38px, 4.4vw, 56px);
+      font-weight: 400;
+      line-height: 1.05;
+      letter-spacing: -1.4px;
+      color: var(--ink);
+    }
+    h2.display {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 3vw, 40px);
+      font-weight: 400;
+      line-height: 1.1;
+      letter-spacing: -0.8px;
+      color: var(--ink);
+    }
+    .lead {
+      font-size: 15.5px;
+      line-height: 1.48;
+      color: var(--body);
+      margin-top: 6px;
+      max-width: 820px;
+    }
+
+    /* Grids & Cards */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; }
+    .grid-2-wide { display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 22px; align-items: stretch; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+    .card-cream {
+      background: var(--surface-card);
+      border: 1px solid var(--hairline);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card-canvas {
+      background: var(--canvas);
+      border: 1px solid var(--hairline);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .card-dark {
+      background: var(--surface-dark);
+      color: var(--on-dark);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card-coral {
+      background: var(--primary);
+      color: var(--on-primary);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .card-title {
+      font-size: 15.5px;
+      font-weight: 500;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .card-dark .card-title { color: var(--on-dark); }
+
+    ul.clean {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    ul.clean li {
+      font-size: 13.5px;
+      line-height: 1.44;
+      color: var(--body);
+      padding-left: 16px;
+      position: relative;
+    }
+    ul.clean li::before {
+      content: "✦";
+      position: absolute;
+      left: 0;
+      top: 1px;
+      font-size: 10px;
+      color: var(--primary);
+    }
+    .card-dark ul.clean li { color: var(--on-dark-soft); }
+    .card-dark ul.clean li strong { color: var(--on-dark); }
+
+    /* Badges & Interactive Pills */
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+    .badge-pass { background: rgba(93, 184, 114, 0.16); color: #2b7a3d; border: 1px solid rgba(93, 184, 114, 0.4); }
+    .card-dark .badge-pass { color: #7ee094; }
+    .badge-warn { background: rgba(232, 165, 90, 0.18); color: #8c5514; border: 1px solid rgba(232, 165, 90, 0.45); }
+    .card-dark .badge-warn { color: #f3ba75; }
+    .badge-err { background: rgba(198, 69, 69, 0.18); color: #a12b2b; border: 1px solid rgba(198, 69, 69, 0.45); }
+    .card-dark .badge-err { color: #ef8383; }
+    .badge-coral { background: var(--primary); color: var(--on-primary); }
+
+    .demo-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .demo-btn {
+      background: var(--surface-dark-elevated);
+      color: var(--on-dark);
+      border: 1px solid #3c3832;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .demo-btn:hover { border-color: var(--primary); }
+    .demo-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    /* Code Window */
+    .code-box {
+      background: var(--surface-dark-soft);
+      border: 1px solid var(--surface-dark-elevated);
+      border-radius: 8px;
+      padding: 11px 13px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.48;
+      color: #e6dfd8;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .c-teal { color: var(--accent-teal); }
+    .c-amber { color: var(--accent-amber); }
+    .c-green { color: var(--success); }
+    .c-red { color: #ef8383; }
+    .c-muted { color: var(--on-dark-soft); }
+
+    /* Evidence Thumbnails */
+    .thumb-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .thumb-card {
+      background: var(--surface-dark-soft);
+      border: 1px solid #35322e;
+      border-radius: 8px;
+      padding: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .thumb-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+    .thumb-card img {
+      width: 100%;
+      height: 82px;
+      object-fit: cover;
+      border-radius: 4px;
+      display: block;
+    }
+    .thumb-cap {
+      font-size: 10.5px;
+      color: var(--on-dark-soft);
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    /* Lightbox & Proof Modal */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 20, 19, 0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 32px;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: 92vw;
+      max-height: 86vh;
+      border-radius: 10px;
+      border: 1px solid #444;
+    }
+    .proof-card {
+      width: min(860px, 94vw);
+      max-height: 84vh;
+      background: var(--surface-dark);
+      color: var(--on-dark);
+      border: 1px solid #3c3832;
+      border-radius: 12px;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .proof-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .proof-pre {
+      background: var(--surface-dark-soft);
+      border: 1px solid var(--surface-dark-elevated);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      color: #e6dfd8;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+    .btn-proof {
+      background: var(--surface-dark-elevated);
+      color: var(--accent-teal);
+      border: 1px solid #3c3832;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-proof:hover { border-color: var(--accent-teal); }
+
+    /* Tables */
+    table.clean-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    table.clean-table th {
+      text-align: left;
+      font-weight: 500;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: var(--muted);
+      padding: 7px 9px;
+      border-bottom: 1px solid var(--hairline);
+    }
+    table.clean-table td {
+      padding: 7px 9px;
+      border-bottom: 1px solid var(--hairline-soft);
+      color: var(--body);
+      vertical-align: top;
+      line-height: 1.35;
+    }
+    table.clean-table tr:last-child td { border-bottom: none; }
+    code.inline {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      background: var(--surface-soft);
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 1px solid var(--hairline);
+      color: var(--ink);
+    }
+    .card-dark code.inline {
+      background: var(--surface-dark-elevated);
+      border-color: #35322e;
+      color: var(--on-dark);
+    }
+
+    /* Three-part pill row */
+    .triad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      margin-top: 6px;
+    }
+    .triad-item {
+      background: var(--canvas);
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      padding: 9px 11px;
+      font-size: 12px;
+      line-height: 1.38;
+      color: var(--body);
+    }
+    .triad-item span {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--primary);
+      margin-bottom: 2px;
+    }
+
+    /* Slide Footer */
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted-soft);
+      border-top: 1px solid var(--hairline-soft);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+
+    .svg-wrap { width: 100%; display: flex; align-items: center; justify-content: center; }
+    svg text { font-family: var(--font-sans); }
+    svg text.mono { font-family: var(--font-mono); }
+
+    /* Overview Grid Mode */
+    body.overview .deck {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+      padding: 76px 32px 32px;
+      overflow-y: auto;
+      height: 100vh;
+    }
+    body.overview .slide {
+      position: relative;
+      inset: auto;
+      display: flex;
+      border: 1px solid var(--hairline);
+      border-radius: 12px;
+      background: var(--canvas);
+      padding: 18px;
+      cursor: pointer;
+      height: 250px;
+      overflow: hidden;
+    }
+    body.overview .slide:hover { border-color: var(--primary); }
+
+    @media print {
+      @page { size: landscape; margin: 0.3in; }
+      html, body { height: auto; overflow: visible; }
+      .topbar, .progress-track { display: none !important; }
+      .deck { padding-top: 0; height: auto; }
+      .slide {
+        position: relative;
+        inset: auto;
+        display: flex !important;
+        page-break-after: always;
+        height: 95vh;
+        padding: 16px 24px;
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07"/>
+      </svg>
+      <span>ProtocolX · Phase 2 Evaluation</span>
+    </div>
+    <div class="topbar-meta">
+      <span class="slide-counter" id="counter">1 / 10</span>
+      <div class="nav-btns">
+        <button class="btn-circle" onclick="prevSlide()" title="Previous (Left Arrow)">←</button>
+        <button class="btn-circle" onclick="nextSlide()" title="Next (Right Arrow / Space)">→</button>
+      </div>
+      <button class="btn-secondary-sm" onclick="toggleFullscreen()">Fullscreen (F)</button>
+      <button class="btn-primary-sm" onclick="toggleOverview()">Grid (G)</button>
+    </div>
+  </header>
+
+  <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="Evidence Screenshot" />
+  </div>
+
+  <div class="lightbox" id="proof-modal" onclick="if(event.target===this) closeProof()">
+    <div class="proof-card">
+      <div class="proof-header">
+        <span id="proof-title" style="font-weight:600; font-size:15px;">Live Terminal Proof</span>
+        <button class="btn-secondary-sm" onclick="closeProof()">Close (Esc)</button>
+      </div>
+      <pre class="proof-pre" id="proof-body"></pre>
+    </div>
+  </div>
+
+  <main class="deck" id="deck">
+
+    <!-- SLIDE 1: PROJECT INTRODUCTION -->
+    <section class="slide active" data-slide="1">
+      <div class="stagger-1">
+        <div class="eyebrow">Computer Networks · Phase 1 to Phase 2 Evolution</div>
+        <h1 class="display">ProtocolX: Building a Resilient<br/>Network Application</h1>
+        <p class="lead">
+          A four-machine distributed platform on a private campus LAN (<code class="inline">10.7.0.0/19</code>) demonstrating redundant DNS, TLS 1.3 edge proxying, load balancing, firewall isolation, and fault tolerance.
+        </p>
+      </div>
+
+      <div class="grid-2-wide" style="margin-top: 10px;">
+        <div class="card-cream stagger-2">
+          <div class="card-title">
+            <span>Team &amp; Physical Machine Allocation</span>
+            <span class="badge badge-pass">All 4 Macs Verified</span>
+          </div>
+          <table class="clean-table">
+            <thead>
+              <tr><th>Mac</th><th>Member</th><th>IP Address</th><th>Phase 2 Responsibility</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Mac 1</strong></td><td>Naveen Kumar</td><td><code class="inline">10.7.11.221</code></td><td>Primary DNS, TTL Test, Central Monitor (<code class="inline">:4000</code>)</td></tr>
+              <tr><td><strong>Mac 2</strong></td><td>Shagun Vishnoi</td><td><code class="inline">10.7.10.188</code></td><td>Nginx Edge (<code class="inline">:80/:443</code>), TLS 1.3, Load Balancing</td></tr>
+              <tr><td><strong>Mac 3</strong></td><td>Archit Mamodiya</td><td><code class="inline">10.7.6.165</code></td><td>Backend A (<code class="inline">:3001</code>), Failover &amp; PF Isolation</td></tr>
+              <tr><td><strong>Mac 4</strong></td><td>Aditya Raj</td><td><code class="inline">10.7.18.164</code></td><td>Backend B (<code class="inline">:3002</code>), Backup DNS, Standby Edge, PF</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-dark stagger-3" style="display:flex; flex-direction:column; justify-content:space-between;">
+          <div class="card-title">
+            <span>Live 4-Mac Network Topology</span>
+            <span class="badge badge-coral">Animated Flow</span>
+          </div>
+          <div class="svg-wrap">
+            <svg viewBox="0 0 380 205" width="100%" height="190">
+              <line x1="95" y1="55" x2="285" y2="55" stroke="#5db8a6" stroke-width="2" class="flow-line"/>
+              <line x1="95" y1="55" x2="95" y2="155" stroke="#8e8b82" stroke-width="1.5" class="flow-line-slow"/>
+              <line x1="285" y1="55" x2="95" y2="155" stroke="#cc785c" stroke-width="2.2" class="flow-line"/>
+              <line x1="285" y1="55" x2="285" y2="155" stroke="#cc785c" stroke-width="2.2" class="flow-line"/>
+              <line x1="95" y1="155" x2="285" y2="155" stroke="#5db872" stroke-width="1.5" class="flow-line-slow"/>
+
+              <rect x="18" y="18" width="154" height="62" rx="10" fill="#252320" stroke="#5db8a6" stroke-width="1.5"/>
+              <circle cx="30" cy="30" r="4" fill="#5db872" class="pulse-dot"/>
+              <text x="98" y="40" text-anchor="middle" fill="#faf9f5" font-size="12" font-weight="600">Mac 1 · Naveen</text>
+              <text x="95" y="56" text-anchor="middle" fill="#a09d96" font-size="10" class="mono">10.7.11.221</text>
+              <text x="95" y="70" text-anchor="middle" fill="#5db8a6" font-size="10">Primary DNS + Monitor</text>
+
+              <rect x="208" y="18" width="154" height="62" rx="10" fill="#252320" stroke="#cc785c" stroke-width="1.8"/>
+              <circle cx="220" cy="30" r="4" fill="#5db872" class="pulse-dot"/>
+              <text x="288" y="40" text-anchor="middle" fill="#faf9f5" font-size="12" font-weight="600">Mac 2 · Shagun</text>
+              <text x="285" y="56" text-anchor="middle" fill="#a09d96" font-size="10" class="mono">10.7.10.188</text>
+              <text x="285" y="70" text-anchor="middle" fill="#e8a55a" font-size="10">Nginx Edge (:80/:443)</text>
+
+              <rect x="18" y="123" width="154" height="62" rx="10" fill="#252320" stroke="#5db872" stroke-width="1.5"/>
+              <circle cx="30" cy="135" r="4" fill="#5db872" class="pulse-dot"/>
+              <text x="98" y="145" text-anchor="middle" fill="#faf9f5" font-size="12" font-weight="600">Mac 3 · Archit</text>
+              <text x="95" y="161" text-anchor="middle" fill="#a09d96" font-size="10" class="mono">10.7.6.165</text>
+              <text x="95" y="175" text-anchor="middle" fill="#5db872" font-size="10">Backend A (:3001) + PF</text>
+
+              <rect x="208" y="123" width="154" height="62" rx="10" fill="#252320" stroke="#5db872" stroke-width="1.5"/>
+              <circle cx="220" cy="135" r="4" fill="#5db872" class="pulse-dot"/>
+              <text x="288" y="145" text-anchor="middle" fill="#faf9f5" font-size="12" font-weight="600">Mac 4 · Aditya</text>
+              <text x="285" y="161" text-anchor="middle" fill="#a09d96" font-size="10" class="mono">10.7.18.164</text>
+              <text x="285" y="175" text-anchor="middle" fill="#5db872" font-size="10">Backend B + Backup DNS</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>ProtocolX · Computer Networks Project</span>
+        <span>← / → Navigate · F Fullscreen · G Grid View</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: PHASE 1 BASELINE & EVIDENCE -->
+    <section class="slide" data-slide="2">
+      <div class="stagger-1">
+        <div class="eyebrow">Baseline Architecture</div>
+        <h2 class="display">Phase 1: What We Built &amp; Why We Evolved</h2>
+        <p class="lead">Phase 1 proved end-to-end private web delivery across four Macs; its single points of failure directly motivated Phase 2.</p>
+      </div>
+
+      <div class="grid-2" style="margin-top: 10px;">
+        <div class="card-dark stagger-2">
+          <div class="card-title">
+            <span>Phase 1 Evidence Captures (Click to Zoom)</span>
+            <span class="badge badge-pass">Repo Screenshots</span>
+          </div>
+          <div class="svg-wrap" style="margin-bottom: 8px;">
+            <svg viewBox="0 0 460 115" width="100%" height="108">
+              <rect x="8" y="34" width="88" height="46" rx="8" fill="#252320" stroke="#e6dfd8" stroke-opacity="0.3"/>
+              <text x="52" y="54" text-anchor="middle" font-size="10.5" font-weight="600" fill="#faf9f5">Client</text>
+              <text x="52" y="69" text-anchor="middle" font-size="9" fill="#a09d96">Mac 1</text>
+
+              <rect x="130" y="6" width="125" height="36" rx="7" fill="#1f1e1b" stroke="#5db8a6"/>
+              <text x="192" y="22" text-anchor="middle" font-size="10" font-weight="600" fill="#faf9f5">Single DNS</text>
+              <text x="192" y="35" text-anchor="middle" font-size="8.5" fill="#5db8a6" class="mono">dnsmasq :53</text>
+
+              <rect x="130" y="60" width="125" height="46" rx="7" fill="#cc785c"/>
+              <text x="192" y="80" text-anchor="middle" font-size="10.5" font-weight="600" fill="#fff">Nginx Edge</text>
+              <text x="192" y="95" text-anchor="middle" font-size="8.5" fill="#faf9f5" class="mono">:80 → :443 TLS 1.3</text>
+
+              <rect x="308" y="14" width="142" height="38" rx="7" fill="#252320" stroke="#5db872"/>
+              <text x="379" y="31" text-anchor="middle" font-size="10" font-weight="600" fill="#faf9f5">Backend A (:3001)</text>
+              <text x="379" y="44" text-anchor="middle" font-size="8.5" fill="#5db872" class="mono">X-Backend: A</text>
+
+              <rect x="308" y="64" width="142" height="38" rx="7" fill="#252320" stroke="#5db872"/>
+              <text x="379" y="81" text-anchor="middle" font-size="10" font-weight="600" fill="#faf9f5">Backend B (:3002)</text>
+              <text x="379" y="94" text-anchor="middle" font-size="8.5" fill="#5db872" class="mono">X-Backend: B</text>
+
+              <path d="M96 48 L130 24" stroke="#5db8a6" stroke-width="1.8" class="flow-line"/>
+              <path d="M96 64 L130 82" stroke="#cc785c" stroke-width="2" class="flow-line"/>
+              <path d="M255 76 L308 35" stroke="#5db872" stroke-width="1.6" class="flow-line"/>
+              <path d="M255 86 L308 84" stroke="#5db872" stroke-width="1.6" class="flow-line"/>
+            </svg>
+          </div>
+          <div class="thumb-row">
+            <div class="thumb-card" onclick="openLightbox('../evidence/E-terminal-captures/screenshots/dig_private_dns_10.7.7.218.png')">
+              <img src="../evidence/E-terminal-captures/screenshots/dig_private_dns_10.7.7.218.png" alt="Phase 1 Private DNS" />
+              <div class="thumb-cap">Phase 1 Private DNS (dig)</div>
+            </div>
+            <div class="thumb-card" onclick="openLightbox('../evidence/E-terminal-captures/screenshots/caching_and_load_balancing_verification.png')">
+              <img src="../evidence/E-terminal-captures/screenshots/caching_and_load_balancing_verification.png" alt="Phase 1 Caching and LB" />
+              <div class="thumb-cap">Caching &amp; Load Balancing</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-cream stagger-3">
+          <div class="card-title">
+            <span>Limitations That Motivated Phase 2</span>
+            <span class="badge badge-warn">4 Gaps Identified</span>
+          </div>
+          <ul class="clean" style="gap: 12px; margin-top: 6px;">
+            <li><strong>Single DNS Point of Failure:</strong> Only one <code class="inline">dnsmasq</code> server existed; if it stopped, <code class="inline">app.protocolx.test</code> failed to resolve.</li>
+            <li><strong>No Service Isolation:</strong> Any LAN client could bypass Nginx and hit Backend A (<code class="inline">:3001</code>) or B (<code class="inline">:3002</code>) directly.</li>
+            <li><strong>Untuned Failover &amp; Single Edge:</strong> Nginx used default upstream timeouts, and there was no standby Edge if Mac 2 went offline.</li>
+            <li><strong>Hardcoded Paths &amp; No Live Observability:</strong> Phase 1 IPs/paths were static and there was no central health dashboard.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 2 · Phase 1 Baseline</span>
+        <span>Click any screenshot thumbnail to zoom</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: PHASE 2 OVERVIEW -->
+    <section class="slide" data-slide="3">
+      <div class="stagger-1">
+        <div class="eyebrow">Phase 2 Extensions</div>
+        <h2 class="display">Six Mandatory Phase 2 Enhancements</h2>
+        <p class="lead">Phase 2 transforms ProtocolX from basic connectivity into a fault-tolerant, firewall-isolated, observable distributed system.</p>
+      </div>
+
+      <div class="grid-3 stagger-2" style="margin-top: 10px;">
+        <div class="card-cream">
+          <div class="card-title"><span>1. Backup DNS</span><span class="badge badge-pass">Tested</span></div>
+          <ul class="clean">
+            <li>Secondary <code class="inline">dnsmasq</code> on Mac 4 mirrors Mac 1 records.</li>
+            <li>Eliminates single DNS failure.</li>
+          </ul>
+        </div>
+        <div class="card-cream">
+          <div class="card-title"><span>2. DNS TTL &amp; Cutover</span><span class="badge badge-pass">Tested</span></div>
+          <ul class="clean">
+            <li>30-second TTL on <code class="inline">migration.protocolx.test</code>.</li>
+            <li>Demonstrates caching vs flush.</li>
+          </ul>
+        </div>
+        <div class="card-cream">
+          <div class="card-title"><span>3. Service Isolation (PF)</span><span class="badge badge-pass">Tested</span></div>
+          <ul class="clean">
+            <li>macOS <code class="inline">pfctl</code> allows only Mac 2 Edge to <code class="inline">:3001/:3002</code>.</li>
+            <li>Includes backup-and-restore rollback.</li>
+          </ul>
+        </div>
+        <div class="card-dark">
+          <div class="card-title"><span>4. Backend HA &amp; Failover</span><span class="badge badge-pass">Tested</span></div>
+          <ul class="clean">
+            <li><strong>Passive failover:</strong> <code class="inline">max_fails=2 fail_timeout=10s</code>.</li>
+            <li>Automatic recovery after outage.</li>
+          </ul>
+        </div>
+        <div class="card-dark">
+          <div class="card-title"><span>5. Controlled Edge Migration</span><span class="badge badge-pass">Tested</span></div>
+          <ul class="clean">
+            <li>Standby Nginx on Mac 4 (<code class="inline">:8443</code>) + DNS cutover.</li>
+            <li>Clean restoration to Mac 2 Edge.</li>
+          </ul>
+        </div>
+        <div class="card-dark">
+          <div class="card-title"><span>6. Layer Troubleshooting</span><span class="badge badge-pass">Tested</span></div>
+          <ul class="clean">
+            <li>Ordered checks: <strong>DNS → TCP → TLS → App</strong>.</li>
+            <li>Plus live 4-Mac Central Dashboard.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card-canvas stagger-3" style="margin-top: 10px; padding: 12px 18px; display:flex; align-items:center; justify-content:space-between;">
+        <span style="font-size:13px; color:var(--body);"><strong>Phase 1 → Phase 2 Evolution:</strong></span>
+        <span style="font-size:13px; color:var(--muted);">1 DNS → <strong>Primary + Backup DNS</strong> &nbsp;|&nbsp; Open Backends → <strong>PF Isolated</strong> &nbsp;|&nbsp; 1 Edge → <strong>Active + Standby Edge</strong> &nbsp;|&nbsp; Manual CLI → <strong>Live Dashboard</strong></span>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 3 · Phase 2 Overview</span>
+        <span>All 6 requirements verified on branch phase2-integration</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: INTERACTIVE BACKUP DNS & TTL -->
+    <section class="slide" data-slide="4">
+      <div class="stagger-1">
+        <div class="eyebrow">Requirement A &amp; B · Name Resolution</div>
+        <h2 class="display">Backup DNS &amp; 30-Second DNS TTL</h2>
+      </div>
+
+      <div class="grid-2" style="margin-top: 8px;">
+        <div class="card-cream stagger-2">
+          <div class="card-title"><span>A. Backup DNS (Mac 1 + Mac 4)</span><span class="badge badge-pass">Tested successfully</span></div>
+          <div class="triad">
+            <div class="triad-item"><span>What</span>A secondary DNS resolver answers when primary DNS stops.</div>
+            <div class="triad-item"><span>Why</span>Removes the single DNS server point of failure.</div>
+            <div class="triad-item"><span>How</span><code class="inline">dnsmasq</code> on Mac 1 (<code class="inline">.11.221</code>) &amp; Mac 4 (<code class="inline">.18.164</code>) with identical records.</div>
+          </div>
+          <div class="demo-bar" style="margin-top:10px;">
+            <button class="demo-btn active" id="dns-btn-normal" onclick="setDnsMode('normal')" style="background:var(--ink); color:#fff;">Normal (Primary Active)</button>
+            <button class="demo-btn" id="dns-btn-fail" onclick="setDnsMode('fail')" style="background:var(--surface-cream-strong); color:var(--ink); border-color:var(--hairline);">Simulate Primary DNS Stop</button>
+          </div>
+          <div class="svg-wrap">
+            <svg viewBox="0 0 420 108" width="100%" height="102">
+              <rect x="10" y="33" width="90" height="42" rx="8" fill="#faf9f5" stroke="#e6dfd8"/>
+              <text x="55" y="58" text-anchor="middle" font-size="11" font-weight="600" fill="#141413">Client</text>
+
+              <rect id="dns1-box" x="145" y="6" width="128" height="40" rx="8" fill="#181715" stroke="#5db872" stroke-width="1.8"/>
+              <text x="209" y="23" text-anchor="middle" font-size="10.5" fill="#faf9f5">Primary DNS (Mac 1)</text>
+              <text id="dns1-sub" x="209" y="37" text-anchor="middle" font-size="9" fill="#5db872" class="mono">10.7.11.221 → OK</text>
+
+              <rect id="dns2-box" x="145" y="62" width="128" height="40" rx="8" fill="#181715" stroke="#8e8b82" stroke-width="1.2"/>
+              <text x="209" y="79" text-anchor="middle" font-size="10.5" fill="#faf9f5">Backup DNS (Mac 4)</text>
+              <text id="dns2-sub" x="209" y="93" text-anchor="middle" font-size="9" fill="#a09d96" class="mono">10.7.18.164 (Standby)</text>
+
+              <rect x="308" y="33" width="104" height="42" rx="8" fill="#cc785c"/>
+              <text x="360" y="52" text-anchor="middle" font-size="10.5" font-weight="600" fill="#fff">10.7.10.188</text>
+              <text x="360" y="66" text-anchor="middle" font-size="9" fill="#faf9f5">Mac 2 Edge IP</text>
+
+              <path id="dns1-line" d="M100 47 L145 26" stroke="#5db872" stroke-width="2" class="flow-line"/>
+              <path id="dns2-line" d="M100 61 L145 82" stroke="#8e8b82" stroke-width="1.4" stroke-dasharray="3 3"/>
+              <path id="dns-out1" d="M273 26 L308 48" stroke="#5db872" stroke-width="2" class="flow-line"/>
+              <path id="dns-out2" d="M273 82 L308 60" stroke="#8e8b82" stroke-width="1.4" stroke-dasharray="3 3"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card-dark stagger-3">
+          <div class="card-title"><span>B. DNS TTL Experiment (30s)</span><span class="badge badge-pass">Tested successfully</span></div>
+          <div class="triad">
+            <div class="triad-item" style="background:var(--surface-dark-elevated); border-color:#35322e; color:var(--on-dark-soft);"><span>What</span>TTL sets how many seconds a DNS answer stays cached.</div>
+            <div class="triad-item" style="background:var(--surface-dark-elevated); border-color:#35322e; color:var(--on-dark-soft);"><span>Why</span>Controls cutover speed vs query load during migrations.</div>
+            <div class="triad-item" style="background:var(--surface-dark-elevated); border-color:#35322e; color:var(--on-dark-soft);"><span>How</span>Tested <code class="inline">migration.protocolx.test</code> with 30s TTL &amp; cache flush.</div>
+          </div>
+          <div class="code-box" style="margin-top: 12px;"><span class="c-muted"># 1. Baseline &amp; authoritative update (.10.188 → .18.164)</span>
+dig @127.0.0.1 migration.protocolx.test +noall +answer
+<span class="c-teal">migration.protocolx.test. 30 IN A 10.7.18.164</span>
+<span class="c-muted"># 2. System resolver within 30s TTL (still cached!)</span>
+dscacheutil -q host -a name migration.protocolx.test
+<span class="c-amber">ip_address: 10.7.10.188</span>
+<span class="c-muted"># 3. After sudo dscacheutil -flushcache</span>
+<span class="c-green">ip_address: 10.7.18.164</span></div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 4 · Tests A &amp; B (Interactive Diagram)</span>
+        <button class="btn-proof" onclick="openProof('dns')">View Live Terminal Proof (Tests A &amp; B)</button>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: INTERACTIVE SERVICE ISOLATION -->
+    <section class="slide" data-slide="5">
+      <div class="stagger-1">
+        <div class="eyebrow">Requirement C · Firewall Access Control</div>
+        <h2 class="display">Backend Service Isolation with macOS PF</h2>
+      </div>
+
+      <div class="grid-2" style="margin-top: 8px;">
+        <div class="card-cream stagger-2">
+          <div class="card-title"><span>Policy &amp; Safety Design</span><span class="badge badge-pass">Tested + Rolled Back</span></div>
+          <div class="triad" style="margin-bottom: 12px;">
+            <div class="triad-item"><span>What</span>Layer 3/4 packet filtering restricting who reaches backend ports.</div>
+            <div class="triad-item"><span>Why</span>Clients must not bypass TLS, caching, or Nginx proxy checks.</div>
+            <div class="triad-item"><span>How</span><code class="inline">pfctl</code> rules on Mac 3 (<code class="inline">:3001</code>) &amp; Mac 4 (<code class="inline">:3002</code>) + backup/restore.</div>
+          </div>
+          <ul class="clean">
+            <li><strong>Rule Order Matters:</strong> <code class="inline">pass in quick</code> for Mac 2 (<code class="inline">10.7.10.188</code>) must precede catch-all <code class="inline">block in quick</code>.</li>
+            <li><strong>SSH &amp; Loopback Preserved:</strong> Port <code class="inline">22</code> and <code class="inline">lo0</code> remain open so admin access and local agents never lock out.</li>
+            <li><strong>Safe Rollback:</strong> <code class="inline">apply_firewall.sh</code> snapshots prior PF status/rules; <code class="inline">rollback_firewall.sh</code> restores them cleanly.</li>
+          </ul>
+        </div>
+
+        <div class="card-dark stagger-3" style="display:flex; flex-direction:column; justify-content:space-between;">
+          <div class="card-title"><span>Allow / Block Verification</span><span class="badge badge-pass">Live Verified</span></div>
+          <div class="svg-wrap">
+            <svg viewBox="0 0 420 148" width="100%" height="140">
+              <rect x="10" y="12" width="125" height="44" rx="8" fill="#252320" stroke="#5db872" stroke-width="1.5"/>
+              <text x="72" y="31" text-anchor="middle" font-size="11" font-weight="600" fill="#faf9f5">Mac 2 Edge</text>
+              <text x="72" y="46" text-anchor="middle" font-size="9.5" fill="#5db872" class="mono">10.7.10.188</text>
+
+              <rect x="10" y="88" width="125" height="44" rx="8" fill="#252320" stroke="#c64545" stroke-width="1.5"/>
+              <text x="72" y="107" text-anchor="middle" font-size="11" font-weight="600" fill="#faf9f5">Direct Client (Mac 1)</text>
+              <text x="72" y="122" text-anchor="middle" font-size="9.5" fill="#ef8383" class="mono">10.7.11.221</text>
+
+              <rect x="180" y="16" width="24" height="114" rx="4" fill="#cc785c"/>
+              <text x="192" y="76" text-anchor="middle" font-size="10" font-weight="600" fill="#fff" transform="rotate(-90 192 76)">PF FIREWALL</text>
+
+              <rect x="255" y="12" width="150" height="44" rx="8" fill="#252320" stroke="#e6dfd8" stroke-opacity="0.3"/>
+              <text x="330" y="31" text-anchor="middle" font-size="11" font-weight="600" fill="#faf9f5">Mac 3 · Backend A</text>
+              <text x="330" y="46" text-anchor="middle" font-size="9.5" fill="#a09d96" class="mono">10.7.6.165:3001</text>
+
+              <rect x="255" y="88" width="150" height="44" rx="8" fill="#252320" stroke="#e6dfd8" stroke-opacity="0.3"/>
+              <text x="330" y="107" text-anchor="middle" font-size="11" font-weight="600" fill="#faf9f5">Mac 4 · Backend B</text>
+              <text x="330" y="122" text-anchor="middle" font-size="9.5" fill="#a09d96" class="mono">10.7.18.164:3002</text>
+
+              <path d="M135 34 L255 34" stroke="#5db872" stroke-width="2.2" class="flow-line"/>
+              <path d="M135 42 L255 104" stroke="#5db872" stroke-width="2.2" class="flow-line"/>
+              <path d="M135 110 L178 110" stroke="#c64545" stroke-width="2.2" stroke-dasharray="4 3"/>
+              <text x="156" y="101" text-anchor="middle" font-size="9" fill="#ef8383">DROP</text>
+            </svg>
+          </div>
+          <div class="code-box"><span class="c-green">Mac 2 → :3001 / :3002 : HTTP/1.1 200 OK (ALLOWED)</span>
+<span class="c-red">Mac 1 → :3001 / :3002 : Timeout exit 28 (BLOCKED)</span>
+<span class="c-teal">Rollback: PF restored to DISABLED → 200 OK</span></div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 5 · Test C</span>
+        <button class="btn-proof" onclick="openProof('pf')">View Live Terminal Proof (PF Isolation &amp; Rollback)</button>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: INTERACTIVE HIGH AVAILABILITY & FAILOVER -->
+    <section class="slide" data-slide="6">
+      <div class="stagger-1">
+        <div class="eyebrow">Requirement D · Fault Tolerance</div>
+        <h2 class="display">High Availability &amp; Passive Backend Failover</h2>
+      </div>
+
+      <div class="grid-2" style="margin-top: 8px;">
+        <div class="card-cream stagger-2">
+          <div class="card-title"><span>Passive Failover Mechanism</span><span class="badge badge-pass">Tested successfully</span></div>
+          <div class="triad" style="margin-bottom: 10px;">
+            <div class="triad-item"><span>What</span>Keeping the app available when one backend server crashes.</div>
+            <div class="triad-item"><span>Why</span>One Node.js outage must not break user requests.</div>
+            <div class="triad-item"><span>How</span>Nginx <code class="inline">max_fails=2 fail_timeout=10s</code> + <code class="inline">proxy_next_upstream</code>.</div>
+          </div>
+          <ul class="clean">
+            <li><strong>Step 1:</strong> Both backends healthy → 6 requests alternate <code class="inline">B → A → B → A → B → A</code>.</li>
+            <li><strong>Step 2:</strong> Stop Backend A on Mac 3 (<code class="inline">:3001</code>) → 4/4 requests succeed via <strong>Backend B</strong>.</li>
+            <li><strong>Step 3:</strong> Restart Backend A and wait <code class="inline">fail_timeout=10s</code> → alternation <code class="inline">B → A → B → A</code> resumes.</li>
+            <li><strong>Honest Limitation:</strong> Mac 2 Nginx Edge remains a <strong>single point of failure</strong> unless DNS cutover runs.</li>
+          </ul>
+        </div>
+
+        <div class="card-dark stagger-3" style="display:flex; flex-direction:column; justify-content:space-between;">
+          <div class="card-title">
+            <span>Interactive Failover Trace</span>
+            <div class="demo-bar" style="margin:0;">
+              <button class="demo-btn active" id="ha-btn-1" onclick="setHaStep(1)">1. Healthy</button>
+              <button class="demo-btn" id="ha-btn-2" onclick="setHaStep(2)">2. Stop A</button>
+              <button class="demo-btn" id="ha-btn-3" onclick="setHaStep(3)">3. Recover</button>
+            </div>
+          </div>
+          <div class="code-box" id="ha-trace"><span class="c-muted"># Phase 1: Both Backends Healthy (Round-Robin)</span>
+Req 1..6 → <span class="c-teal">HTTP/1.1 200 OK · X-Backend: B, A, B, A, B, A</span>
+<span class="c-muted">Cache-Control: public, max-age=10 · X-Gateway: ProtocolX-Mac2-Edge</span></div>
+          <div class="card-coral" style="padding: 12px 16px; margin-top: 10px;">
+            <div style="font-size: 13px; font-weight: 500;">Key Distinction for Viva</div>
+            <div style="font-size: 12.5px; opacity: 0.95; margin-top: 2px;">Open-source Nginx uses <strong>passive failover</strong> (detects failure on real client requests), not active background health checks.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 6 · Test D (Click steps 1–3 to inspect live failover trace)</span>
+        <button class="btn-proof" onclick="openProof('ha')">View Live Terminal Proof (Round-Robin &amp; Failover)</button>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: CONTROLLED EDGE MIGRATION -->
+    <section class="slide" data-slide="7">
+      <div class="stagger-1">
+        <div class="eyebrow">Requirement E · Disaster Recovery</div>
+        <h2 class="display">Controlled Edge Migration via DNS Cutover</h2>
+      </div>
+
+      <div class="grid-2" style="margin-top: 8px;">
+        <div class="card-cream stagger-2">
+          <div class="card-title"><span>DNS-Based Edge Cutover</span><span class="badge badge-pass">Tested successfully</span></div>
+          <div class="triad" style="margin-bottom: 10px;">
+            <div class="triad-item"><span>What</span>Moving the HTTPS entry point from Mac 2 to Mac 4 via DNS.</div>
+            <div class="triad-item"><span>Why</span>Supports Edge maintenance or Mac 2 failure without new hardware.</div>
+            <div class="triad-item"><span>How</span>Standby Nginx on Mac 4 (<code class="inline">:8443</code>) + update <code class="inline">app.protocolx.test</code> A-record.</div>
+          </div>
+          <ul class="clean">
+            <li><strong>TLS Portability:</strong> Certificate SAN <code class="inline">DNS:app.protocolx.test</code> works across both Mac 2 and Mac 4.</li>
+            <li><strong>Cache Behavior:</strong> Cached clients kept <code class="inline">10.7.10.188</code> until TTL expiry or <code class="inline">dscacheutil -flushcache</code>.</li>
+            <li><strong>Real Interaction Found:</strong> When Mac 3/4 PF only whitelisted Mac 2, Standby Edge hit <code class="inline">504</code> until PF was rolled back.</li>
+          </ul>
+        </div>
+
+        <div class="card-dark stagger-3" style="display:flex; flex-direction:column; justify-content:space-between;">
+          <div class="card-title"><span>Before vs After Cutover</span><span class="badge badge-pass">Restored Cleanly</span></div>
+          <div class="svg-wrap">
+            <svg viewBox="0 0 420 138" width="100%" height="128">
+              <rect x="8" y="8" width="186" height="120" rx="8" fill="#252320" stroke="#8e8b82" stroke-opacity="0.4"/>
+              <text x="101" y="27" text-anchor="middle" font-size="10.5" font-weight="600" fill="#a09d96">BEFORE CUTOVER</text>
+              <text x="101" y="50" text-anchor="middle" font-size="10" fill="#faf9f5" class="mono">app.protocolx.test</text>
+              <line x1="101" y1="56" x2="101" y2="78" stroke="#e8a55a" stroke-width="2" class="flow-line"/>
+              <rect x="25" y="80" width="152" height="36" rx="6" fill="#cc785c"/>
+              <text x="101" y="96" text-anchor="middle" font-size="10" font-weight="600" fill="#fff">Mac 2 Primary Edge</text>
+              <text x="101" y="109" text-anchor="middle" font-size="9" fill="#faf9f5" class="mono">10.7.10.188:443</text>
+
+              <text x="210" y="74" text-anchor="middle" font-size="16" fill="#5db8a6">→</text>
+
+              <rect x="226" y="8" width="186" height="120" rx="8" fill="#252320" stroke="#5db8a6" stroke-width="1.5"/>
+              <text x="319" y="27" text-anchor="middle" font-size="10.5" font-weight="600" fill="#5db8a6">AFTER DNS CUTOVER</text>
+              <text x="319" y="50" text-anchor="middle" font-size="10" fill="#faf9f5" class="mono">app.protocolx.test</text>
+              <line x1="319" y1="56" x2="319" y2="78" stroke="#5db8a6" stroke-width="2" class="flow-line"/>
+              <rect x="243" y="80" width="152" height="36" rx="6" fill="#181715" stroke="#5db8a6"/>
+              <text x="319" y="96" text-anchor="middle" font-size="10" font-weight="600" fill="#faf9f5">Mac 4 Standby Edge</text>
+              <text x="319" y="109" text-anchor="middle" font-size="9" fill="#5db8a6" class="mono">10.7.18.164:8443</text>
+            </svg>
+          </div>
+          <div class="code-box"><span class="c-teal">Cutover:</span> app.protocolx.test → 10.7.18.164 (Standby TLSv1.3 OK)
+<span class="c-green">Restore:</span> app.protocolx.test → 10.7.10.188 (200 OK · Mac2-Edge)</div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 7 · Test E</span>
+        <button class="btn-proof" onclick="openProof('edge')">View Live Terminal Proof (Standby Edge &amp; Cutover)</button>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: TROUBLESHOOTING -->
+    <section class="slide" data-slide="8">
+      <div class="stagger-1">
+        <div class="eyebrow">Requirement F · Systematic Diagnostics</div>
+        <h2 class="display">4-Layer Network Troubleshooting Sequence</h2>
+        <p class="lead">Testing bottom-up isolates the exact failing layer in seconds instead of guessing at application logs when DNS or TCP is down.</p>
+      </div>
+
+      <div class="grid-4 stagger-2" style="margin-top: 8px;">
+        <div class="card-cream">
+          <div class="card-title"><span>1. DNS Layer</span><span class="badge badge-pass">0 ms</span></div>
+          <p style="font-size:12.5px; color:var(--body); margin-bottom:6px;">Is the domain resolving to the right IP?</p>
+          <p style="font-size:11.5px; color:var(--muted);"><strong>Tools:</strong> <code class="inline">dig</code>, <code class="inline">dscacheutil</code></p>
+        </div>
+        <div class="card-cream">
+          <div class="card-title"><span>2. TCP Layer</span><span class="badge badge-pass">Port 443</span></div>
+          <p style="font-size:12.5px; color:var(--body); margin-bottom:6px;">Is the target port reachable &amp; listening?</p>
+          <p style="font-size:11.5px; color:var(--muted);"><strong>Tools:</strong> <code class="inline">nc -vz</code>, <code class="inline">ping</code>, <code class="inline">lsof</code></p>
+        </div>
+        <div class="card-cream">
+          <div class="card-title"><span>3. TLS Layer</span><span class="badge badge-pass">TLS 1.3</span></div>
+          <p style="font-size:12.5px; color:var(--body); margin-bottom:6px;">Is the certificate &amp; SNI handshake valid?</p>
+          <p style="font-size:11.5px; color:var(--muted);"><strong>Tools:</strong> <code class="inline">openssl s_client</code>, Wireshark</p>
+        </div>
+        <div class="card-cream">
+          <div class="card-title"><span>4. Application</span><span class="badge badge-pass">200 OK</span></div>
+          <p style="font-size:12.5px; color:var(--body); margin-bottom:6px;">Are Nginx &amp; backends returning valid HTTP?</p>
+          <p style="font-size:11.5px; color:var(--muted);"><strong>Tools:</strong> <code class="inline">curl -i</code>, Nginx logs</p>
+        </div>
+      </div>
+
+      <div class="card-dark stagger-3" style="margin-top: 10px;">
+        <div class="card-title"><span>Live 4-Layer Verification Output (Mac 1)</span><span class="badge badge-warn">Faculty Fault Injection: Not Tested</span></div>
+        <div class="code-box">1. dig app.protocolx.test           → <span class="c-teal">NOERROR · A 10.7.10.188 (0 msec)</span>
+2. nc -vz 10.7.10.188 443           → <span class="c-teal">Connection to 10.7.10.188 port 443 [tcp/https] succeeded!</span>
+3. openssl s_client ... -servername → <span class="c-teal">Protocol: TLSv1.3 · AEAD-CHACHA20-POLY1305-SHA256</span>
+4. curl -i https://app.protocolx.test/api/status → <span class="c-green">HTTP/1.1 200 OK · X-Gateway: ProtocolX-Mac2-Edge</span></div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 8 · Test F</span>
+        <button class="btn-proof" onclick="openProof('layers')">View Live Terminal Proof (4-Layer Diagnostics)</button>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: PROBLEMS FACED & SOLUTIONS -->
+    <section class="slide" data-slide="9">
+      <div class="stagger-1">
+        <div class="eyebrow">Real Engineering Challenges</div>
+        <h2 class="display">Problems We Faced &amp; How We Solved Them</h2>
+      </div>
+
+      <div class="card-canvas stagger-2" style="margin-top: 8px; padding: 12px 16px;">
+        <table class="clean-table">
+          <thead>
+            <tr><th style="width:24%;">Problem Faced</th><th style="width:36%;">Root Cause / Investigation</th><th style="width:40%;">Solution / Workaround</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1. DHCP IP drift on campus Wi-Fi</strong></td>
+              <td>Phase 1 hardcoded IPs changed on reconnect; <code class="inline">/etc/resolver/test</code> and <code class="inline">nginx.conf</code> pointed to old hosts.</td>
+              <td>Verified live <code class="inline">en0</code> IPs on all 4 Macs and updated DNS/Nginx configs before testing.</td>
+            </tr>
+            <tr>
+              <td><strong>2. Laptops sleeping mid-demo</strong></td>
+              <td>macOS powered down Wi-Fi on battery after ~30s idle, causing Edge and backend timeouts.</td>
+              <td>Kept laptops awake with <code class="inline">caffeinate</code> and power adapters during evaluation.</td>
+            </tr>
+            <tr>
+              <td><strong>3. TLS cert mismatch &amp; trust error</strong></td>
+              <td><code class="inline">curl</code> failed with self-signed error (<code class="inline">exit 60</code>) and Mac 2's <code class="inline">.crt</code>/<code class="inline">.key</code> mismatched.</td>
+              <td>Regenerated cert with SAN <code class="inline">app.protocolx.test</code> and added it to Mac 1 System Keychain.</td>
+            </tr>
+            <tr>
+              <td><strong>4. DNS caching vs authoritative reload</strong></td>
+              <td><code class="inline">SIGHUP</code> didn't reload <code class="inline">dnsmasq.conf</code>, and macOS kept old cached IPs during the 30s TTL.</td>
+              <td>Restarted <code class="inline">dnsmasq</code> on changes and verified both <code class="inline">dig</code> and <code class="inline">dscacheutil -flushcache</code>.</td>
+            </tr>
+            <tr>
+              <td><strong>5. PF rule order &amp; rollback syntax</strong></td>
+              <td><code class="inline">block in quick</code> before <code class="inline">pass</code> blocked Edge; unordered backup anchors failed <code class="inline">pfctl -f</code>.</td>
+              <td>Placed <code class="inline">pass in quick</code> first, kept SSH (<code class="inline">:22</code>) open, and ordered <code class="inline">scrub → nat → filter</code>.</td>
+            </tr>
+            <tr>
+              <td><strong>6. Standby Edge blocked by PF (<code class="inline">504</code>)</strong></td>
+              <td>During cutover to Mac 4 (<code class="inline">:8443</code>), active PF rules only allowed Mac 2 (<code class="inline">10.7.10.188</code>).</td>
+              <td>Diagnosed via Nginx logs, rolled back PF, and noted Standby IP must be whitelisted.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 9 · Troubleshooting &amp; Engineering Fixes</span>
+        <span>Every entry backed by real commits and test logs</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: FINAL ARCHITECTURE & RESULTS -->
+    <section class="slide" data-slide="10">
+      <div class="stagger-1">
+        <div class="eyebrow">Final Summary &amp; Evaluation</div>
+        <h2 class="display">Phase 2 Results &amp; Key Takeaways</h2>
+      </div>
+
+      <div class="grid-2" style="margin-top: 8px;">
+        <div class="card-cream stagger-2">
+          <div class="card-title"><span>Final Verification Status</span><span class="badge badge-pass">6 / 6 Demonstrated</span></div>
+          <table class="clean-table">
+            <tbody>
+              <tr><td><strong>A. Backup DNS</strong></td><td><span class="badge badge-pass">Tested successfully</span></td><td>Mac 4 answers when Mac 1 stops</td></tr>
+              <tr><td><strong>B. 30s DNS TTL</strong></td><td><span class="badge badge-pass">Tested successfully</span></td><td>Cached vs flushed answer verified</td></tr>
+              <tr><td><strong>C. PF Isolation</strong></td><td><span class="badge badge-pass">Tested successfully</span></td><td>Edge allowed, direct blocked, rolled back</td></tr>
+              <tr><td><strong>D. Backend HA</strong></td><td><span class="badge badge-pass">Tested successfully</span></td><td>A/B, failover to B, 10s recovery</td></tr>
+              <tr><td><strong>E. Edge Migration</strong></td><td><span class="badge badge-pass">Tested successfully</span></td><td>Standby :8443 + DNS cutover &amp; restore</td></tr>
+              <tr><td><strong>F. Troubleshooting</strong></td><td><span class="badge badge-pass">Tested successfully</span></td><td>4 layers OK (fault injection: <code class="inline">Not tested</code>)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-dark stagger-3" style="display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div class="card-title"><span>What We Learned</span><span class="badge badge-pass">4 Macs Healthy</span></div>
+            <ul class="clean" style="margin-top: 4px;">
+              <li><strong>Redundancy removes SPOFs:</strong> Backup DNS and multi-backend failover keep users online during node crashes.</li>
+              <li><strong>Defense in depth:</strong> TLS 1.3 at Edge + <code class="inline">pfctl</code> isolation + CSRF/nonce-protected control plane.</li>
+              <li><strong>Layer-by-layer debugging:</strong> Checking DNS → TCP → TLS → App pinpoints failures fast.</li>
+              <li><strong>Remaining limitation:</strong> Mac 2 Edge still requires DNS cutover if it goes offline.</li>
+            </ul>
+          </div>
+          <div class="card-coral" style="padding: 15px 18px; margin-top: 10px;">
+            <div style="font-family: var(--font-display); font-size: 21px; line-height: 1.2;">
+              “ProtocolX — From Basic Connectivity to Resilient Network Architecture.”
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <span>Slide 10 · Final Summary</span>
+        <button class="btn-proof" onclick="openProof('dash')">View Live 4-Mac Dashboard JSON Proof</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const counter = document.getElementById('counter');
+    const progress = document.getElementById('progress');
+    let current = 0;
+
+    function showSlide(idx) {
+      current = (idx + slides.length) % slides.length;
+      slides.forEach((s, i) => {
+        s.classList.remove('active');
+        if (i === current) {
+          void s.offsetWidth; // trigger reflow for clean animation replay
+          s.classList.add('active');
+        }
+      });
+      counter.textContent = `${current + 1} / ${slides.length}`;
+      progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+    }
+
+    function nextSlide() { showSlide(current + 1); }
+    function prevSlide() { showSlide(current - 1); }
+    function toggleOverview() { document.body.classList.toggle('overview'); }
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox').classList.add('open');
+    }
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('open');
+    }
+
+    const PROOFS = {
+      dns: {
+        title: 'Tests A & B — Live Backup DNS & 30s TTL Terminal Proof',
+        body: `=== Test A: Stop Primary DNS & Verify Backup DNS ===
+$ sudo killall dnsmasq
+$ dig +time=2 +tries=1 @127.0.0.1 app.protocolx.test
+;; connection timed out; no servers could be reached
+
+$ dig +time=3 +tries=2 @10.7.18.164 app.protocolx.test +noall +answer
+app.protocolx.test.     30      IN       A       10.7.10.188
+
+$ sudo ./scripts/start_dns.sh
+dnsmasq started and macOS .test resolver configured successfully.
+
+=== Test B: 30s DNS TTL Experiment (migration.protocolx.test) ===
+[Step 2] Baseline:
+migration.protocolx.test. 30    IN       A       10.7.10.188
+ip_address: 10.7.10.188
+
+[Step 3] Authoritative update (-> 10.7.18.164):
+migration.protocolx.test. 30    IN       A       10.7.18.164
+
+[Step 4] System resolver within 30s TTL (cached):
+ip_address: 10.7.10.188
+
+[Step 5] After sudo dscacheutil -flushcache:
+ip_address: 10.7.18.164`
+      },
+      pf: {
+        title: 'Test C — Live PF Isolation & Rollback Terminal Proof',
+        body: `=== PF Active (Mac 3 :3001 & Mac 4 :3002) ===
+Mac 2 (10.7.10.188) -> Mac 3:3001:
+HTTP/1.1 200 OK | X-Backend: A
+
+Mac 2 (10.7.10.188) -> Mac 4:3002:
+HTTP/1.1 200 OK | X-Backend: B
+
+Mac 1 (10.7.11.221) -> Mac 3:3001:
+BLOCKED_AS_EXPECTED (exit 28)
+
+Mac 1 (10.7.11.221) -> Mac 4:3002:
+BLOCKED_AS_EXPECTED (exit 28)
+
+End-to-End HTTPS via Mac 2 Edge while PF active:
+HTTP/1.1 200 OK | X-Backend: A | Cache-Control: public, max-age=10
+
+=== PF Rollback Verified (Mac 3 & Mac 4) ===
+$ sudo ./scripts/rollback_firewall.sh
+[1/3] Previous PF status: disabled
+[2/3] Restoring saved PF ruleset from /var/tmp/protocolx_pf_backup/pf_rules.bak...
+[3/3] Restoring PF enabled/disabled state (disabled)...
+SUCCESS: PF ruleset restored and PF returned to its original DISABLED state.
+
+Mac 1 -> Mac 3:3001: HTTP/1.1 200 OK (X-Backend: A)
+Mac 1 -> Mac 4:3002: HTTP/1.1 200 OK (X-Backend: B)`
+      },
+      ha: {
+        title: 'Test D — Live Round-Robin, Failover & Recovery Terminal Proof',
+        body: `=== 1. 6-Request Round-Robin Load Balancing ===
+Req 1: HTTP/1.1 200 OK | X-Backend: B | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 2: HTTP/1.1 200 OK | X-Backend: A | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 3: HTTP/1.1 200 OK | X-Backend: B | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 4: HTTP/1.1 200 OK | X-Backend: A | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 5: HTTP/1.1 200 OK | X-Backend: B | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+Req 6: HTTP/1.1 200 OK | X-Backend: A | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+
+=== 2. Stop Backend A on Mac 3 ===
+Failover Req 1: HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge
+Failover Req 2: HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge
+Failover Req 3: HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge
+Failover Req 4: HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge
+
+=== 3. Restart Backend A + Wait fail_timeout=10s ===
+Recovery Req 1: HTTP/1.1 200 OK | X-Backend: B
+Recovery Req 2: HTTP/1.1 200 OK | X-Backend: A
+Recovery Req 3: HTTP/1.1 200 OK | X-Backend: B
+Recovery Req 4: HTTP/1.1 200 OK | X-Backend: A`
+      },
+      edge: {
+        title: 'Test E — Standby Edge (:8443) & Live DNS Cutover Proof',
+        body: `=== 1. Standby Edge TLSv1.3 & HTTPS (Mac 4 :8443) ===
+$ openssl s_client -connect 10.7.18.164:8443 -servername app.protocolx.test
+Protocol  : TLSv1.3
+Cipher    : AEAD-CHACHA20-POLY1305-SHA256
+Verify return code: 0 (ok)
+HTTP/1.1 200 OK | X-Backend: B | X-Gateway: ProtocolX-Standby-Edge-Mac4
+
+=== 2. Live DNS Cutover & Restore (Mac 1) ===
+Before cutover: app.protocolx.test. 30 IN A 10.7.10.188
+Cutover -> 10.7.18.164:
+  dig @127.0.0.1: app.protocolx.test. 30 IN A 10.7.18.164
+  dscacheutil (cached before flush): ip_address: 10.7.10.188
+  dscacheutil (after flush):         ip_address: 10.7.18.164
+Restore -> 10.7.10.188:
+  HTTP/1.1 200 OK | Server: nginx/1.31.10 | X-Backend: B | X-Gateway: ProtocolX-Mac2-Edge`
+      },
+      layers: {
+        title: 'Test F — 4-Layer Troubleshooting Sequence Live Output',
+        body: `--- Layer 1 (DNS) ---
+$ dig +time=2 +tries=1 app.protocolx.test
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR
+app.protocolx.test. 30 IN A 10.7.10.188
+;; Query time: 0 msec | SERVER: 127.0.0.1#53
+
+--- Layer 2 (TCP) ---
+$ nc -vz -w 3 10.7.10.188 443
+Connection to 10.7.10.188 port 443 [tcp/https] succeeded!
+
+--- Layer 3 (TLS) ---
+$ openssl s_client -connect 10.7.10.188:443 -servername app.protocolx.test
+Protocol  : TLSv1.3
+Cipher    : AEAD-CHACHA20-POLY1305-SHA256
+
+--- Layer 4 (Application, trusted cert without -k) ---
+$ curl -i --max-time 5 https://app.protocolx.test/api/status
+HTTP/1.1 200 OK
+X-Backend: B | Cache-Control: public, max-age=10 | X-Gateway: ProtocolX-Mac2-Edge
+{"backend":"B","status":"ok","host":"vk.local","port":3002}`
+      },
+      dash: {
+        title: 'Central Dashboard — Live 4-Mac Health JSON (07_dashboard_4macs_healthy.json)',
+        body: `[
+  {
+    "id": "mac1", "name": "Mac 1 (Naveen)", "ip": "10.7.11.221",
+    "isOnline": true, "health": "HEALTHY",
+    "services": ["Primary DNS (dnsmasq):HEALTHY"]
+  },
+  {
+    "id": "mac2", "name": "Mac 2 (Shagun)", "ip": "10.7.10.188",
+    "isOnline": true, "health": "HEALTHY",
+    "services": ["Nginx HTTP Gateway:HEALTHY", "Nginx HTTPS Termination:HEALTHY"]
+  },
+  {
+    "id": "mac3", "name": "Mac 3 (Archit)", "ip": "10.7.6.165",
+    "isOnline": true, "health": "HEALTHY",
+    "services": ["Backend A Microservice:HEALTHY"]
+  },
+  {
+    "id": "mac4", "name": "Mac 4 (Aditya)", "ip": "10.7.18.164",
+    "isOnline": true, "health": "HEALTHY",
+    "services": ["Backend B Microservice:HEALTHY", "Backup DNS Server:HEALTHY"]
+  }
+]`
+      }
+    };
+
+    function openProof(key) {
+      const p = PROOFS[key];
+      if (!p) return;
+      document.getElementById('proof-title').textContent = p.title;
+      document.getElementById('proof-body').textContent = p.body;
+      document.getElementById('proof-modal').classList.add('open');
+    }
+    function closeProof() {
+      document.getElementById('proof-modal').classList.remove('open');
+    }
+
+    // Slide 4 interactive DNS mode
+    function setDnsMode(mode) {
+      const bNorm = document.getElementById('dns-btn-normal');
+      const bFail = document.getElementById('dns-btn-fail');
+      const d1Box = document.getElementById('dns1-box');
+      const d1Sub = document.getElementById('dns1-sub');
+      const d2Box = document.getElementById('dns2-box');
+      const d2Sub = document.getElementById('dns2-sub');
+      const l1 = document.getElementById('dns1-line');
+      const l2 = document.getElementById('dns2-line');
+      const o1 = document.getElementById('dns-out1');
+      const o2 = document.getElementById('dns-out2');
+
+      if (mode === 'fail') {
+        bFail.style.background = 'var(--primary)'; bFail.style.color = '#fff';
+        bNorm.style.background = 'var(--surface-cream-strong)'; bNorm.style.color = 'var(--ink)';
+        d1Box.setAttribute('stroke', '#c64545');
+        d1Sub.textContent = 'Stopped → Timeout'; d1Sub.setAttribute('fill', '#ef8383');
+        d2Box.setAttribute('stroke', '#5db872'); d2Box.setAttribute('stroke-width', '1.8');
+        d2Sub.textContent = '10.7.18.164 → OK'; d2Sub.setAttribute('fill', '#5db872');
+        l1.setAttribute('stroke', '#c64545'); l1.classList.remove('flow-line'); l1.setAttribute('stroke-dasharray', '3 3');
+        o1.setAttribute('stroke', '#555'); o1.classList.remove('flow-line');
+        l2.setAttribute('stroke', '#5db872'); l2.setAttribute('stroke-width', '2.2'); l2.classList.add('flow-line');
+        o2.setAttribute('stroke', '#5db872'); o2.setAttribute('stroke-width', '2.2'); o2.classList.add('flow-line');
+      } else {
+        bNorm.style.background = 'var(--ink)'; bNorm.style.color = '#fff';
+        bFail.style.background = 'var(--surface-cream-strong)'; bFail.style.color = 'var(--ink)';
+        d1Box.setAttribute('stroke', '#5db872');
+        d1Sub.textContent = '10.7.11.221 → OK'; d1Sub.setAttribute('fill', '#5db872');
+        d2Box.setAttribute('stroke', '#8e8b82'); d2Box.setAttribute('stroke-width', '1.2');
+        d2Sub.textContent = '10.7.18.164 (Standby)'; d2Sub.setAttribute('fill', '#a09d96');
+        l1.setAttribute('stroke', '#5db872'); l1.classList.add('flow-line');
+        o1.setAttribute('stroke', '#5db872'); o1.classList.add('flow-line');
+        l2.setAttribute('stroke', '#8e8b82'); l2.setAttribute('stroke-width', '1.4'); l2.classList.remove('flow-line');
+        o2.setAttribute('stroke', '#8e8b82'); o2.setAttribute('stroke-width', '1.4'); o2.classList.remove('flow-line');
+      }
+    }
+
+    // Slide 6 interactive HA trace
+    function setHaStep(step) {
+      const box = document.getElementById('ha-trace');
+      [1, 2, 3].forEach((n) => document.getElementById(`ha-btn-${n}`).classList.toggle('active', n === step));
+      if (step === 1) {
+        box.innerHTML = `<span class="c-muted"># Phase 1: Both Backends Healthy (Round-Robin)</span>\nReq 1..6 → <span class="c-teal">HTTP/1.1 200 OK · X-Backend: B, A, B, A, B, A</span>\n<span class="c-muted">Cache-Control: public, max-age=10 · X-Gateway: ProtocolX-Mac2-Edge</span>`;
+      } else if (step === 2) {
+        box.innerHTML = `<span class="c-muted"># Phase 2: Backend A Stopped (Mac 3 :3001 down)</span>\nFailover 1..4 → <span class="c-amber">HTTP/1.1 200 OK · X-Backend: B (100% healthy)</span>\n<span class="c-muted">max_fails=2 fail_timeout=10s + proxy_next_upstream error timeout</span>`;
+      } else {
+        box.innerHTML = `<span class="c-muted"># Phase 3: Backend A Restarted + 11s (&gt; fail_timeout=10s)</span>\nRecovery 1..4 → <span class="c-green">HTTP/1.1 200 OK · X-Backend: B, A, B, A</span>\n<span class="c-muted">Upstream A automatically re-entered rotation after fail_timeout</span>`;
+      }
+    }
+
+    slides.forEach((s, i) => {
+      s.addEventListener('click', () => {
+        if (document.body.classList.contains('overview')) {
+          document.body.classList.remove('overview');
+          showSlide(i);
+        }
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeLightbox();
+        closeProof();
+        document.body.classList.remove('overview');
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key.toLowerCase() === 'g') {
+        toggleOverview();
+      } else if (e.key.toLowerCase() === 'f') {
+        toggleFullscreen();
+      }
+    });
+
+    showSlide(0);
+  </script>
+</body>
+</html>

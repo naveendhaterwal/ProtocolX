@@ -1,0 +1,31 @@
+=== Timestamp: 2026-11-25T16:27:07+05:30 ===
+=== Mac 1 (Naveen) ===
+naveen-3.local
+n2
+10.7.11.221
+26.4
+COMMAND   PID USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    49997   n2   17u  IPv4 0xacc5e4900aa6aec8      0t0  TCP *:4000 (LISTEN)
+dnsmasq not running
+=== Mac 2 (Shagun) ===
+rahul.local
+Apple
+10.7.10.188
+27.2
+nginx not running
+=== Mac 3 (Archit) ===
+Archits-MacBook-Pro-4.local
+architmomdiya
+10.7.6.165
+15.6.1
+COMMAND   PID          USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    49740 architmomdiya   15u  IPv4 0xed104a581f53ab0b      0t0  TCP *:3001 (LISTEN)
+=== Mac 4 (Aditya) ===
+vk.local
+flexer
+10.7.18.164
+26.6.2
+COMMAND   PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    51753 flexer   15u  IPv4 0x17ee5bbeec3ad2bf      0t0  TCP *:3002 (LISTEN)
+nginx not found
+/opt/homebrew/bin/nginx

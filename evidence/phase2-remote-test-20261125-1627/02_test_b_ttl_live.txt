@@ -1,0 +1,37 @@
+============================================================
+ProtocolX - Phase 2: Task 4 DNS TTL Experiment
+Record: migration.protocolx.test | Configured TTL: 30s
+============================================================
+
+[Step 1] Configuring initial record: migration.protocolx.test -> 10.7.10.188 with TTL 30s...
+
+[Step 2] Initial DNS Query (Baseline Answer):
+
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 migration.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+migration.protocolx.test. 30	IN	A	10.7.10.188
+name: migration.protocolx.test
+ip_address: 10.7.10.188
+
+[Step 3] Updating DNS server authoritative record to: migration.protocolx.test -> 10.7.18.164...
+Authoritative dnsmasq answer now:
+
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 migration.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+migration.protocolx.test. 30	IN	A	10.7.18.164
+
+[Step 4] Querying system resolver immediately (within 30s TTL window):
+name: migration.protocolx.test
+ip_address: 10.7.10.188
+
+[Step 5] Flushing macOS DNS cache (dscacheutil -flushcache) and querying again:
+name: migration.protocolx.test
+ip_address: 10.7.18.164
+
+[Cleanup] Restoring migration.protocolx.test -> 10.7.10.188...
+
+============================================================
+DNS TTL Experiment Completed.
+============================================================

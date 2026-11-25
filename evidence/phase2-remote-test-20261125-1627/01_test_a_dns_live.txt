@@ -1,0 +1,53 @@
+=== Test A (Live): Primary & Backup DNS Queries ===
+--- Primary DNS (Mac 1: 127.0.0.1 & 10.7.11.221) ---
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @127.0.0.1 app.protocolx.test +noall +answer +stats
+; (1 server found)
+;; global options: +cmd
+app.protocolx.test.	30	IN	A	10.7.10.188
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1#53(127.0.0.1)
+;; WHEN: Wed Nov 25 16:46:31 IST 2026
+;; MSG SIZE  rcvd: 63
+
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @10.7.11.221 app.protocolx.test +noall +answer +stats
+; (1 server found)
+;; global options: +cmd
+app.protocolx.test.	30	IN	A	10.7.10.188
+;; Query time: 27 msec
+;; SERVER: 10.7.11.221#53(10.7.11.221)
+;; WHEN: Wed Nov 25 16:46:31 IST 2026
+;; MSG SIZE  rcvd: 63
+
+--- Backup DNS (Mac 4: 10.7.18.164) ---
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @10.7.18.164 app.protocolx.test +noall +answer +stats
+; (1 server found)
+;; global options: +cmd
+;; connection timed out; no servers could be reached
+--- Mac 1 /etc/resolver/test ---
+nameserver 127.0.0.1
+nameserver 10.7.11.221
+port 53
+--- TTL Record Check (migration.protocolx.test) ---
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @127.0.0.1 migration.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+migration.protocolx.test. 30	IN	A	10.7.10.188
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @10.7.18.164 migration.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+migration.protocolx.test. 30	IN	A	10.7.10.188
+
+; <<>> DiG 9.10.6 <<>> +time=3 +tries=2 @10.7.18.164 app.protocolx.test +noall +answer +stats
+; (1 server found)
+;; global options: +cmd
+app.protocolx.test.	30	IN	A	10.7.10.188
+;; Query time: 13 msec
+;; SERVER: 10.7.18.164#53(10.7.18.164)
+;; WHEN: Wed Nov 25 16:46:53 IST 2026
+;; MSG SIZE  rcvd: 63
+
