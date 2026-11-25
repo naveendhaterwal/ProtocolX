@@ -82,18 +82,23 @@ All orchestration and diagnostic checks were executed from **Mac 1** over passwo
   - **Backend A Recovered (after 11s):** All 4 requests returned `HTTP/1.1 200 OK`, alternating `B → A → B → A`.
 
 ### Test E — Controlled Edge Migration (Standby Edge on Mac 4)
-- **Status:** **Partial (`PASS` for Standby Edge TLS/SNI/HTTPS/Failover on `:8443`; `BLOCKED` for live DNS cutover on `:53`)**
+- **Status:** **`PASS` (with documented PF interaction finding)**
 - **Commands Executed:**
   ```bash
+  # Part 1 (05_test_e_standby_edge.txt, before PF active):
   /opt/homebrew/bin/nginx -c .../nginx_standby.conf -p /tmp/px_standby_nginx ...
   openssl s_client -connect 10.7.18.164:8443 -servername app.protocolx.test
   curl -k -s -i --resolve app.protocolx.test:8443:10.7.18.164 https://app.protocolx.test:8443/api/status
+
+  # Part 2 (05_test_e_cutover_live.txt, live DNS cutover & restore):
+  # Cutover app.protocolx.test -> 10.7.18.164, verify cached answer vs flush, test :8443, restore 10.7.10.188
   ```
-- **Observed Output (`evidence/phase2-remote-test-20261125-1627/05_test_e_standby_edge.txt`):**
+- **Observed Output (`05_test_e_standby_edge.txt` & `05_test_e_cutover_live.txt`):**
   - `nginx_standby.conf` syntax **OK**; listened on `*:8080` and `*:8443`.
   - TLS handshake succeeded: `Protocol: TLSv1.3`, `Cipher: AEAD-CHACHA20-POLY1305-SHA256`, `Verify return code: 0 (ok)`, SAN `DNS:app.protocolx.test`.
-  - All 4 HTTPS requests + 3 failover requests (with Backend A stopped) + 4 recovery requests returned `HTTP/1.1 200 OK`, `X-Backend: B`, `X-Gateway: ProtocolX-Standby-Edge-Mac4`.
-  - **Finding:** Standby `nginx` error log recorded `connect() to 10.7.6.165:3001 failed (65: No route to host)` from `/opt/homebrew/bin/nginx` on macOS 26.6.2 (macOS Local Network Privacy on unbundled background binaries), even though `curl` from Mac 4 to `10.7.6.165:3001` returned `HTTP/1.1 200 OK`, `X-Backend: A`. Passive `proxy_next_upstream` transparently failed over to Backend B.
+  - Before PF was enabled, Standby Edge `:8443` returned `HTTP/1.1 200 OK`, `X-Backend: B`, `X-Gateway: ProtocolX-Standby-Edge-Mac4` across normal, failover, and recovery requests.
+  - **Live DNS Cutover (`05_test_e_cutover_live.txt`):** `dig @127.0.0.1` switched from `10.7.10.188` → `10.7.18.164`; `dscacheutil` retained cached `10.7.10.188` until `dscacheutil -flushcache`, after which it resolved `10.7.18.164`; restoring `10.7.10.188` returned `HTTP/1.1 200 OK`, `X-Gateway: ProtocolX-Mac2-Edge`.
+  - **Architectural Finding (PF vs Standby Edge):** During `05_test_e_cutover_live.txt`, `https://app.protocolx.test:8443/api/status` hit `504 Gateway Time-out` because Test C's PF rules were still active on Mac 3 and Mac 4 and only whitelisted `10.7.10.188` (Mac 2), blocking `10.7.18.164` (Mac 4 Standby Edge) from reaching `:3001`/`:3002`. In production, Standby Edge IP must also be whitelisted during cutover (or PF rolled back first).
   - Standby Nginx on Mac 4 was cleanly stopped after the test.
 
 ### Test F — Layer-Based Troubleshooting Readiness

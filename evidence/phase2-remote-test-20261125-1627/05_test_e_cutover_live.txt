@@ -1,0 +1,50 @@
+=== Test E (Live): DNS Cutover to Standby Edge (10.7.18.164:8443) ===
+--- Before cutover ---
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @127.0.0.1 app.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+app.protocolx.test.	30	IN	A	10.7.10.188
+name: app.protocolx.test
+ip_address: 10.7.10.188
+--- Cutover app.protocolx.test -> 10.7.18.164 ---
+Authoritative DNS now:
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @127.0.0.1 app.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+app.protocolx.test.	30	IN	A	10.7.18.164
+Cached macOS resolver before flush:
+name: app.protocolx.test
+ip_address: 10.7.10.188
+Flushing cache & testing HTTPS through Standby Edge:
+name: app.protocolx.test
+ip_address: 10.7.18.164
+HTTP/1.1 504 Gateway Time-out
+Server: nginx/1.31.6
+Date: Wed, 25 Nov 2026 12:50:22 GMT
+Content-Type: text/html
+Content-Length: 167
+Connection: keep-alive
+
+<html>
+<head><title>504 Gateway Time-out</title></head>
+<body>
+--- Restore app.protocolx.test -> 10.7.10.188 ---
+Deploying dnsmasq configuration from repository...
+dnsmasq started and macOS .test resolver configured successfully.
+
+; <<>> DiG 9.10.6 <<>> +time=2 +tries=1 @127.0.0.1 app.protocolx.test +noall +answer
+; (1 server found)
+;; global options: +cmd
+app.protocolx.test.	30	IN	A	10.7.10.188
+HTTP/1.1 200 OK
+Server: nginx/1.31.10
+Date: Wed, 25 Nov 2026 12:50:23 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+X-Backend: B
+Cache-Control: public, max-age=10
+X-Gateway: ProtocolX-Mac2-Edge
+
