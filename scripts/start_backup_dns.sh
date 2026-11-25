@@ -3,7 +3,17 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-DNSMASQ_BIN=$(which dnsmasq 2>/dev/null || test -x /opt/homebrew/opt/dnsmasq/sbin/dnsmasq && echo /opt/homebrew/opt/dnsmasq/sbin/dnsmasq || echo /usr/local/sbin/dnsmasq)
+if command -v dnsmasq >/dev/null 2>&1; then
+    DNSMASQ_BIN="$(command -v dnsmasq)"
+elif [ -x /opt/homebrew/opt/dnsmasq/sbin/dnsmasq ]; then
+    DNSMASQ_BIN="/opt/homebrew/opt/dnsmasq/sbin/dnsmasq"
+elif [ -x /opt/homebrew/sbin/dnsmasq ]; then
+    DNSMASQ_BIN="/opt/homebrew/sbin/dnsmasq"
+elif [ -x /usr/local/sbin/dnsmasq ]; then
+    DNSMASQ_BIN="/usr/local/sbin/dnsmasq"
+else
+    DNSMASQ_BIN=""
+fi
 CONF_PATH="$REPO_ROOT/dns/dnsmasq_backup.conf"
 
 echo "======================================================="

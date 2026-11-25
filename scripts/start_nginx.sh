@@ -5,7 +5,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 NGINX_CONF="$REPO_ROOT/nginx/nginx.conf"
 
-NGINX_BIN=$(which nginx 2>/dev/null || test -x /opt/homebrew/bin/nginx && echo /opt/homebrew/bin/nginx || echo /usr/local/bin/nginx)
+if command -v nginx >/dev/null 2>&1; then
+    NGINX_BIN="$(command -v nginx)"
+elif [ -x /opt/homebrew/bin/nginx ]; then
+    NGINX_BIN="/opt/homebrew/bin/nginx"
+elif [ -x /usr/local/bin/nginx ]; then
+    NGINX_BIN="/usr/local/bin/nginx"
+else
+    NGINX_BIN=""
+fi
 
 echo "======================================================="
 echo "ProtocolX Nginx Gateway Starter — Mac 2"
